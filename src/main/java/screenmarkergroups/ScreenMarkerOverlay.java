@@ -30,6 +30,7 @@ package screenmarkergroups; // Added package declaration
 import java.awt.BasicStroke;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+import javax.inject.Inject; // Import Inject
 import lombok.Getter;
 import lombok.NonNull;
 import net.runelite.client.ui.overlay.Overlay;
@@ -40,9 +41,12 @@ public class ScreenMarkerOverlay extends Overlay {
 	@Getter
 	private final ScreenMarker marker;
 	private final ScreenMarkerRenderable screenMarkerRenderable; // This class is now in the root
+	private final ScreenMarkerGroupsPlugin plugin; // Inject plugin
 
-	ScreenMarkerOverlay(@NonNull ScreenMarker marker) {
+	@Inject
+	ScreenMarkerOverlay(@NonNull ScreenMarker marker, ScreenMarkerGroupsPlugin plugin) { // Add plugin to constructor
 		this.marker = marker;
+		this.plugin = plugin; // Store plugin instance
 		this.screenMarkerRenderable = new ScreenMarkerRenderable(); // This class is now in the root
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ALWAYS_ON_TOP);
@@ -60,7 +64,12 @@ public class ScreenMarkerOverlay extends Overlay {
 
 	@Override
 	public Dimension render(Graphics2D graphics) {
-		if (!marker.isVisible()) {
+		// Find the group this marker belongs to
+		String groupName = plugin.findGroupForMarker(this);
+
+		// Render only if marker is visible AND its group is visible (or group not
+		// found, which shouldn't happen)
+		if (!marker.isVisible() || (groupName != null && !plugin.isGroupVisible(groupName))) {
 			return null;
 		}
 

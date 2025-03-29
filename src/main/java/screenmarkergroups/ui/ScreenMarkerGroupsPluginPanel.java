@@ -199,7 +199,12 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 				continue;
 			}
 
-			GroupHeaderPanel headerPanel = new GroupHeaderPanel(plugin, groupName);
+			// Assume plugin has methods: isGroupVisible(groupName) and
+			// setGroupVisibility(groupName, isVisible)
+			boolean initialVisibility = plugin.isGroupVisible(groupName); // Get initial state
+			GroupHeaderPanel headerPanel = new GroupHeaderPanel(plugin, groupName, initialVisibility,
+					(isVisible) -> plugin.setGroupVisibility(groupName, isVisible) // Provide callback
+			);
 			markerView.add(headerPanel, constraints);
 			constraints.gridy++;
 

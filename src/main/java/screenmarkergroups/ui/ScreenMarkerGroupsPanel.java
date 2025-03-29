@@ -632,7 +632,6 @@ class ScreenMarkerGroupsPanel extends JPanel {
 	void setControlsEnabled(boolean enabled) {
 		configureLabel.setEnabled(enabled);
 		// Optionally, change icon to a disabled version if available/needed
-		// configureLabel.setIcon(enabled ? CONFIGURE_ICON : CONFIGURE_DISABLED_ICON);
 		configureLabel.setToolTipText(enabled ? "Configure marker" : null);
 
 		// Also disable other controls that shouldn't be used during creation mode

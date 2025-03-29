@@ -27,8 +27,10 @@ package screenmarkergroups.ui;
 import screenmarkergroups.ScreenMarkerGroupsPlugin;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.function.Consumer;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
@@ -52,11 +54,18 @@ class GroupHeaderPanel extends JPanel {
 	private static final ImageIcon ADD_MARKER_HOVER_ICON;
 	private static final ImageIcon CONFIGURE_ICON;
 	private static final ImageIcon CONFIGURE_HOVER_ICON;
+	private static final ImageIcon VISIBLE_ICON;
+	private static final ImageIcon VISIBLE_HOVER_ICON;
+	private static final ImageIcon INVISIBLE_ICON;
+	private static final ImageIcon INVISIBLE_HOVER_ICON;
 
 	private final JLabel nameLabel;
 	private final String groupName;
+	private boolean isVisible; // State for group visibility
+	private final Consumer<Boolean> onVisibilityChange; // Callback
 	private final ScreenMarkerGroupsPlugin plugin;
 	private final JLabel configureLabel = new JLabel();
+	private final JLabel visibilityLabel = new JLabel(); // New label for visibility
 	private final JLabel addMarkerButton = new JLabel();
 	private final JPopupMenu contextMenu;
 
@@ -70,6 +79,16 @@ class GroupHeaderPanel extends JPanel {
 				"configure.png");
 		CONFIGURE_ICON = new ImageIcon(configureIcon);
 		CONFIGURE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(configureIcon, -100));
+
+		final BufferedImage visibleIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class,
+				"visible_icon.png");
+		VISIBLE_ICON = new ImageIcon(visibleIcon);
+		VISIBLE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(visibleIcon, -100));
+
+		final BufferedImage invisibleIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class,
+				"invisible_icon.png");
+		INVISIBLE_ICON = new ImageIcon(invisibleIcon);
+		INVISIBLE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(invisibleIcon, -100));
 	}
 
 	/**
@@ -139,9 +158,21 @@ class GroupHeaderPanel extends JPanel {
 		return popupMenu;
 	}
 
-	GroupHeaderPanel(ScreenMarkerGroupsPlugin plugin, String groupName) {
+	/**
+	 * Constructs a GroupHeaderPanel.
+	 *
+	 * @param plugin             The main plugin instance.
+	 * @param groupName          The name of the group this header represents.
+	 * @param initialVisibility  The initial visibility state of the group.
+	 * @param onVisibilityChange Callback function invoked when visibility is
+	 *                           toggled.
+	 */
+	GroupHeaderPanel(ScreenMarkerGroupsPlugin plugin, String groupName, boolean initialVisibility,
+			Consumer<Boolean> onVisibilityChange) {
 		this.plugin = plugin;
 		this.groupName = groupName;
+		this.isVisible = initialVisibility;
+		this.onVisibilityChange = onVisibilityChange;
 
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -178,6 +209,33 @@ class GroupHeaderPanel extends JPanel {
 			}
 		});
 
+		// Setup Visibility button
+		updateVisibilityIcon(); // Set initial icon based on state
+		visibilityLabel.setToolTipText(isVisible ? "Hide group markers" : "Show group markers");
+		visibilityLabel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				if (SwingUtilities.isLeftMouseButton(e)) {
+					isVisible = !isVisible; // Toggle state
+					updateVisibilityIcon();
+					visibilityLabel.setToolTipText(isVisible ? "Hide group markers" : "Show group markers");
+					if (onVisibilityChange != null) {
+						onVisibilityChange.accept(isVisible); // Notify listener
+					}
+				}
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				visibilityLabel.setIcon(isVisible ? VISIBLE_HOVER_ICON : INVISIBLE_HOVER_ICON);
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e) {
+				updateVisibilityIcon(); // Revert to non-hover icon
+			}
+		});
+
 		// Setup Add Marker button
 		addMarkerButton.setIcon(ADD_MARKER_ICON);
 		addMarkerButton.setToolTipText("Add new marker to this group");
@@ -203,11 +261,13 @@ class GroupHeaderPanel extends JPanel {
 			}
 		});
 
-		// Panel for right-side controls
-		JPanel rightActions = new JPanel(new BorderLayout(3, 0)); // Gap between buttons
+		// Panel for right-side controls using FlowLayout for easier horizontal
+		// arrangement
+		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 0)); // Right-aligned, 3px horizontal gap
 		rightActions.setBackground(getBackground());
-		rightActions.add(configureLabel, BorderLayout.CENTER); // Configure on the left
-		rightActions.add(addMarkerButton, BorderLayout.EAST); // Add on the right
+		rightActions.add(configureLabel);
+		rightActions.add(visibilityLabel); // Add visibility button in the middle
+		rightActions.add(addMarkerButton);
 
 		// Add components to the main panel
 		add(nameLabel, BorderLayout.CENTER);
@@ -221,8 +281,36 @@ class GroupHeaderPanel extends JPanel {
 	 */
 	void setControlsEnabled(boolean enabled) {
 		configureLabel.setEnabled(enabled);
-		// Optionally, change icon to a disabled version if available/needed
-		// configureLabel.setIcon(enabled ? CONFIGURE_ICON : CONFIGURE_DISABLED_ICON);
+		visibilityLabel.setEnabled(enabled); // Also enable/disable visibility toggle
+		addMarkerButton.setEnabled(enabled); // Assuming add should also be disabled
+		// Update icons and tooltips based on enabled state
+		configureLabel.setIcon(
+				enabled ? CONFIGURE_ICON : new ImageIcon(ImageUtil.alphaOffset(CONFIGURE_ICON.getImage(), 0.5f))); // Wrap
+																													// in
+																													// ImageIcon
 		configureLabel.setToolTipText(enabled ? "Configure group" : null);
+
+		if (enabled) {
+			updateVisibilityIcon(); // Set correct visible/invisible icon
+			visibilityLabel.setToolTipText(isVisible ? "Hide group markers" : "Show group markers");
+		} else {
+			// Use a dimmed version of the current icon when disabled
+			visibilityLabel.setIcon(isVisible ? new ImageIcon(ImageUtil.alphaOffset(VISIBLE_ICON.getImage(), 0.5f))
+					: new ImageIcon(ImageUtil.alphaOffset(INVISIBLE_ICON.getImage(), 0.5f))); // Wrap in ImageIcon
+			visibilityLabel.setToolTipText(null);
+		}
+
+		addMarkerButton.setIcon(
+				enabled ? ADD_MARKER_ICON : new ImageIcon(ImageUtil.alphaOffset(ADD_MARKER_ICON.getImage(), 0.5f))); // Wrap
+																														// in
+																														// ImageIcon
+		addMarkerButton.setToolTipText(enabled ? "Add new marker to this group" : null);
+	}
+
+	/**
+	 * Updates the visibility icon based on the current isVisible state.
+	 */
+	private void updateVisibilityIcon() {
+		visibilityLabel.setIcon(isVisible ? VISIBLE_ICON : INVISIBLE_ICON);
 	}
 }
