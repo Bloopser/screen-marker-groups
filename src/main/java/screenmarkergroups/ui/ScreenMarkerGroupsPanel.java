@@ -277,10 +277,10 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		nameWrapper.add(nameActions, BorderLayout.EAST);
 
 		JPanel bottomContainer = new JPanel(new BorderLayout());
-		bottomContainer.setBorder(new EmptyBorder(8, 0, 8, 0));
+		bottomContainer.setBorder(new EmptyBorder(2, 0, 0, 0));
 		bottomContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-		JPanel leftActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+		JPanel leftActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
 		leftActions.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
 		borderColorIndicator.setToolTipText("Edit border color");
@@ -350,7 +350,7 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		leftActions.add(labelIndicator);
 		leftActions.add(thicknessSpinner);
 
-		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 8));
 		rightActions.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
 		// Setup context menu first, so the configure button can use it

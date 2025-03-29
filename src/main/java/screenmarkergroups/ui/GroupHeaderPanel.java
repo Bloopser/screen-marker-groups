@@ -35,9 +35,13 @@ import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.BorderFactory;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.ImageUtil;
@@ -177,7 +181,11 @@ class GroupHeaderPanel extends JPanel {
 
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		setBorder(new EmptyBorder(5, 5, 5, 5));
+
+		// Create a compound border: padding + bottom line
+		Border padding = new EmptyBorder(2, 5, 2, 5);
+		Border line = BorderFactory.createMatteBorder(0, 0, 1, 0, ColorScheme.DARK_GRAY_COLOR);
+		setBorder(new CompoundBorder(padding, line));
 
 		nameLabel = new JLabel(groupName);
 		nameLabel.setFont(FontManager.getRunescapeBoldFont());

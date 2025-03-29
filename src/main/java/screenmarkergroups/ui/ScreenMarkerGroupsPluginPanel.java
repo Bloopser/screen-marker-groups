@@ -232,8 +232,8 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 				}
 			}
 
-			// Restore original Box spacer
-			markerView.add(Box.createRigidArea(new Dimension(0, 15)), constraints);
+			// Reduced spacer height from 15 to 5
+			markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
 			constraints.gridy++;
 		}
 
