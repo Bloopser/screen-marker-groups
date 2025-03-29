@@ -64,10 +64,15 @@ public interface ScreenMarkerGroupsConfig extends Config {
         return "[]"; // Default to an empty JSON array
     }
 
-    @ConfigItem(position = 1, // Position it in the settings panel
-            keyName = "importScreenMarkersButton", // Unique key name
-            name = "Import from Screen Markers", description = "Click this button to import markers from the original Screen Markers plugin into the 'Imported' group.")
-    default boolean importButton() {
-        return false; // This acts as a trigger; the plugin will listen for changes
+    /**
+     * A config item that acts like a button to trigger the import process.
+     * It's a boolean checkbox, but added tooltip to suggest clicking.
+     * The plugin listens for changes and resets it immediately.
+     *
+     * @return false, always.
+     */
+    @ConfigItem(position = 1, keyName = "importTrigger", name = "Import screenmarkers", description = "Click this to import markers from the original Screen Markers plugin into the 'Imported' group.")
+    default boolean importTrigger() {
+        return false; // Default value, plugin resets it after triggering
     }
 }

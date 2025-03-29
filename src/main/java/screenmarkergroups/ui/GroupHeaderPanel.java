@@ -102,13 +102,14 @@ class GroupHeaderPanel extends JPanel {
 		JMenuItem moveUpItem = (JMenuItem) contextMenu.getComponent(3); // Skip separator
 		JMenuItem moveDownItem = (JMenuItem) contextMenu.getComponent(4);
 
-		boolean isSpecialGroup = groupName.equals(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP)
-				|| groupName.equals(ScreenMarkerGroupsPlugin.IMPORTED_GROUP);
-		// TODO: Add more sophisticated move logic based on actual position
-		boolean canMove = plugin.getMarkerGroups().size() > 1 && !isSpecialGroup;
+		boolean isUnassignedGroup = groupName.equals(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP);
+		boolean isImportedGroup = groupName.equals(ScreenMarkerGroupsPlugin.IMPORTED_GROUP);
+		boolean isSpecialGroupForMove = isUnassignedGroup || isImportedGroup; // Both are special for moving/renaming
 
-		renameItem.setEnabled(!isSpecialGroup);
-		deleteItem.setEnabled(!isSpecialGroup);
+		boolean canMove = plugin.getMarkerGroups().size() > 1 && !isSpecialGroupForMove;
+
+		renameItem.setEnabled(!isSpecialGroupForMove); // Cannot rename Unassigned or Imported
+		deleteItem.setEnabled(!isUnassignedGroup); // Can delete Imported, but not Unassigned
 		moveUpItem.setEnabled(canMove);
 		moveDownItem.setEnabled(canMove);
 	}

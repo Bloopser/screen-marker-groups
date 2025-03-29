@@ -488,7 +488,8 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		groupOrderList.retainAll(markerGroups.keySet());
 
 		// Load Group Visibility States
-		final String visibilityJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_VISIBILITY);
+		final String visibilityJson = configManager.getConfiguration(CONFIG_GROUP,
+				CONFIG_KEY_VISIBILITY);
 		if (!Strings.isNullOrEmpty(visibilityJson)) {
 			try {
 				final Map<String, Boolean> loadedVisibility = gson.fromJson(visibilityJson,
@@ -580,9 +581,10 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	}
 
 	public void deleteGroup(String groupName) {
-		if (groupName.equals(UNASSIGNED_GROUP) || groupName.equals(IMPORTED_GROUP)) {
+		// Allow deleting any group except "Unassigned"
+		if (groupName.equals(UNASSIGNED_GROUP)) {
 			JOptionPane.showMessageDialog(pluginPanel,
-					"Cannot delete the special group '" + groupName + "'.",
+					"Cannot delete the special '" + UNASSIGNED_GROUP + "' group.",
 					"Delete Group Error", JOptionPane.ERROR_MESSAGE);
 			return;
 		}
@@ -747,15 +749,29 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		if (!event.getGroup().equals(CONFIG_GROUP)) {
 			return;
 		}
-		if (event.getKey().equals("importScreenMarkersButton")) {
-			SwingUtilities.invokeLater(() -> {
-				configManager.setConfiguration(CONFIG_GROUP, "importScreenMarkersButton", false);
-				importScreenMarkers();
-			});
+
+		// Check if the "importTrigger" config item was changed (likely toggled to true)
+		if (event.getKey().equals("importTrigger")) {
+			// We only trigger if the new value is true (meaning it was clicked)
+			if (Boolean.parseBoolean(event.getNewValue())) {
+				// Use invokeLater to avoid issues with config changes during event handling
+				SwingUtilities.invokeLater(() -> {
+					// Reset the trigger back to false immediately
+					configManager.setConfiguration(CONFIG_GROUP, "importTrigger", false);
+					// Perform the import
+					importScreenMarkers();
+				});
+			}
 		}
 	}
 
-	private void importScreenMarkers() {
+	/**
+	 * Imports screen markers from the original RuneLite Screen Markers plugin.
+	 * Reads the configuration from the "screenmarkers" group and adds them
+	 * to the "Imported" group in this plugin. Shows dialogs for success,
+	 * failure, or if no markers were found/imported.
+	 */
+	public void importScreenMarkers() {
 		String originalMarkersJson = configManager.getConfiguration("screenmarkers", "markers");
 		if (Strings.isNullOrEmpty(originalMarkersJson)) {
 			JOptionPane.showMessageDialog(pluginPanel,
