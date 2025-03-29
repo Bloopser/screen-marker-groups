@@ -71,7 +71,7 @@ public interface ScreenMarkerGroupsConfig extends Config {
      *
      * @return false, always.
      */
-    @ConfigItem(position = 1, keyName = "importTrigger", name = "Import screenmarkers", description = "Click this to import markers from the original Screen Markers plugin into the 'Imported' group.")
+    @ConfigItem(position = 1, keyName = "importTrigger", name = "Import Screen Markers", description = "Click this to import markers from the original Screen Markers plugin into the 'Imported' group.")
     default boolean importTrigger() {
         return false; // Default value, plugin resets it after triggering
     }
