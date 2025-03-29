@@ -44,6 +44,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
+import net.runelite.client.util.SwingUtil;
 import net.runelite.client.util.ImageUtil;
 import javax.swing.ImageIcon;
 import java.awt.image.BufferedImage;
@@ -62,12 +63,19 @@ class GroupHeaderPanel extends JPanel {
 	private static final ImageIcon VISIBLE_HOVER_ICON;
 	private static final ImageIcon INVISIBLE_ICON;
 	private static final ImageIcon INVISIBLE_HOVER_ICON;
+	private static final ImageIcon EXPANDED_ICON;
+	private static final ImageIcon EXPANDED_HOVER_ICON;
+	private static final ImageIcon COLLAPSED_ICON;
+	private static final ImageIcon COLLAPSED_HOVER_ICON;
 
 	private final JLabel nameLabel;
 	private final String groupName;
 	private boolean isVisible; // State for group visibility
-	private final Consumer<Boolean> onVisibilityChange; // Callback
+	private boolean isExpanded; // State for group expansion
+	private final Consumer<Boolean> onVisibilityChange; // Callback for visibility
+	private final Consumer<Boolean> onExpansionChange; // Callback for expansion
 	private final ScreenMarkerGroupsPlugin plugin;
+	private final JLabel expansionLabel = new JLabel(); // Label for expand/collapse icon
 	private final JLabel configureLabel = new JLabel();
 	private final JLabel visibilityLabel = new JLabel(); // New label for visibility
 	private final JLabel addMarkerButton = new JLabel();
@@ -93,6 +101,15 @@ class GroupHeaderPanel extends JPanel {
 				"invisible_icon.png");
 		INVISIBLE_ICON = new ImageIcon(invisibleIcon);
 		INVISIBLE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(invisibleIcon, -100));
+
+		final BufferedImage expandedIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "expanded.png");
+		EXPANDED_ICON = new ImageIcon(expandedIcon);
+		EXPANDED_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(expandedIcon, -100));
+
+		final BufferedImage collapsedIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class,
+				"collapsed.png");
+		COLLAPSED_ICON = new ImageIcon(collapsedIcon);
+		COLLAPSED_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(collapsedIcon, -100));
 	}
 
 	/**
@@ -169,30 +186,63 @@ class GroupHeaderPanel extends JPanel {
 	 * @param plugin             The main plugin instance.
 	 * @param groupName          The name of the group this header represents.
 	 * @param initialVisibility  The initial visibility state of the group.
+	 * @param initialExpansion   The initial expansion state of the group.
 	 * @param onVisibilityChange Callback function invoked when visibility is
+	 *                           toggled.
+	 * @param onExpansionChange  Callback function invoked when expansion is
 	 *                           toggled.
 	 */
 	GroupHeaderPanel(ScreenMarkerGroupsPlugin plugin, String groupName, boolean initialVisibility,
-			Consumer<Boolean> onVisibilityChange) {
+			boolean initialExpansion, Consumer<Boolean> onVisibilityChange, Consumer<Boolean> onExpansionChange) {
 		this.plugin = plugin;
 		this.groupName = groupName;
 		this.isVisible = initialVisibility;
+		this.isExpanded = initialExpansion;
 		this.onVisibilityChange = onVisibilityChange;
+		this.onExpansionChange = onExpansionChange;
 
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
 		// Create a compound border: padding + bottom line
-		Border padding = new EmptyBorder(2, 5, 2, 5);
+		Border padding = new EmptyBorder(4, 5, 4, 5); // Increased top/bottom padding from 2 to 4
 		Border line = BorderFactory.createMatteBorder(0, 0, 1, 0, ColorScheme.DARK_GRAY_COLOR);
 		setBorder(new CompoundBorder(padding, line));
 
 		nameLabel = new JLabel(groupName);
 		nameLabel.setFont(FontManager.getRunescapeBoldFont());
 		nameLabel.setForeground(Color.WHITE);
+		nameLabel.setBorder(new EmptyBorder(0, 3, 0, 0)); // Add padding between icon and text
 
 		// Setup context menu first
 		this.contextMenu = setupContextMenu();
+
+		// Setup Expansion button
+		updateExpansionIcon(); // Set initial icon
+		expansionLabel.setToolTipText(isExpanded ? "Collapse group" : "Expand group");
+		expansionLabel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				if (SwingUtilities.isLeftMouseButton(e)) {
+					isExpanded = !isExpanded; // Toggle state
+					updateExpansionIcon();
+					expansionLabel.setToolTipText(isExpanded ? "Collapse group" : "Expand group");
+					if (onExpansionChange != null) {
+						onExpansionChange.accept(isExpanded); // Notify listener
+					}
+				}
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				expansionLabel.setIcon(isExpanded ? EXPANDED_HOVER_ICON : COLLAPSED_HOVER_ICON);
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e) {
+				updateExpansionIcon(); // Revert to non-hover icon
+			}
+		});
 
 		// Setup Configure button
 		configureLabel.setIcon(CONFIGURE_ICON);
@@ -272,14 +322,22 @@ class GroupHeaderPanel extends JPanel {
 
 		// Panel for right-side controls using FlowLayout for easier horizontal
 		// arrangement
-		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 0)); // Right-aligned, 3px horizontal gap
+		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 2)); // Right-aligned, 3px horizontal gap
 		rightActions.setBackground(getBackground());
+		rightActions.setBorder(new EmptyBorder(0, 0, 4, 2)); // Add 2px right padding
 		rightActions.add(configureLabel);
 		rightActions.add(visibilityLabel); // Add visibility button in the middle
 		rightActions.add(addMarkerButton);
 
+		// Panel for left-side elements (expansion icon + name)
+		JPanel leftActions = new JPanel(new BorderLayout());
+		leftActions.setBackground(getBackground());
+		leftActions.setBorder(new EmptyBorder(2, 2, 4, 0)); // Add 2px left padding
+		leftActions.add(expansionLabel, BorderLayout.WEST);
+		leftActions.add(nameLabel, BorderLayout.CENTER);
+
 		// Add components to the main panel
-		add(nameLabel, BorderLayout.CENTER);
+		add(leftActions, BorderLayout.CENTER);
 		add(rightActions, BorderLayout.EAST);
 	}
 
@@ -289,14 +347,24 @@ class GroupHeaderPanel extends JPanel {
 	 * @param enabled True to enable, false to disable.
 	 */
 	void setControlsEnabled(boolean enabled) {
+		expansionLabel.setEnabled(enabled); // Enable/disable expansion toggle
 		configureLabel.setEnabled(enabled);
 		visibilityLabel.setEnabled(enabled); // Also enable/disable visibility toggle
 		addMarkerButton.setEnabled(enabled); // Assuming add should also be disabled
+
 		// Update icons and tooltips based on enabled state
+		if (enabled) {
+			updateExpansionIcon(); // Set correct expanded/collapsed icon
+			expansionLabel.setToolTipText(isExpanded ? "Collapse group" : "Expand group");
+		} else {
+			// Use a dimmed version of the current icon when disabled
+			expansionLabel.setIcon(isExpanded ? new ImageIcon(ImageUtil.alphaOffset(EXPANDED_ICON.getImage(), 0.5f))
+					: new ImageIcon(ImageUtil.alphaOffset(COLLAPSED_ICON.getImage(), 0.5f)));
+			expansionLabel.setToolTipText(null);
+		}
+
 		configureLabel.setIcon(
-				enabled ? CONFIGURE_ICON : new ImageIcon(ImageUtil.alphaOffset(CONFIGURE_ICON.getImage(), 0.5f))); // Wrap
-																													// in
-																													// ImageIcon
+				enabled ? CONFIGURE_ICON : new ImageIcon(ImageUtil.alphaOffset(CONFIGURE_ICON.getImage(), 0.5f)));
 		configureLabel.setToolTipText(enabled ? "Configure group" : null);
 
 		if (enabled) {
@@ -305,14 +373,12 @@ class GroupHeaderPanel extends JPanel {
 		} else {
 			// Use a dimmed version of the current icon when disabled
 			visibilityLabel.setIcon(isVisible ? new ImageIcon(ImageUtil.alphaOffset(VISIBLE_ICON.getImage(), 0.5f))
-					: new ImageIcon(ImageUtil.alphaOffset(INVISIBLE_ICON.getImage(), 0.5f))); // Wrap in ImageIcon
+					: new ImageIcon(ImageUtil.alphaOffset(INVISIBLE_ICON.getImage(), 0.5f)));
 			visibilityLabel.setToolTipText(null);
 		}
 
 		addMarkerButton.setIcon(
-				enabled ? ADD_MARKER_ICON : new ImageIcon(ImageUtil.alphaOffset(ADD_MARKER_ICON.getImage(), 0.5f))); // Wrap
-																														// in
-																														// ImageIcon
+				enabled ? ADD_MARKER_ICON : new ImageIcon(ImageUtil.alphaOffset(ADD_MARKER_ICON.getImage(), 0.5f)));
 		addMarkerButton.setToolTipText(enabled ? "Add new marker to this group" : null);
 	}
 
@@ -321,5 +387,12 @@ class GroupHeaderPanel extends JPanel {
 	 */
 	private void updateVisibilityIcon() {
 		visibilityLabel.setIcon(isVisible ? VISIBLE_ICON : INVISIBLE_ICON);
+	}
+
+	/**
+	 * Updates the expansion icon based on the current isExpanded state.
+	 */
+	private void updateExpansionIcon() {
+		expansionLabel.setIcon(isExpanded ? EXPANDED_ICON : COLLAPSED_ICON);
 	}
 }

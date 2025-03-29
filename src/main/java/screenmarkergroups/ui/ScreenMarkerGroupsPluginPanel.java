@@ -202,12 +202,21 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 				continue;
 			}
 
-			// Assume plugin has methods: isGroupVisible(groupName) and
-			// setGroupVisibility(groupName, isVisible)
-			boolean initialVisibility = plugin.isGroupVisible(groupName); // Get initial state
-			GroupHeaderPanel headerPanel = new GroupHeaderPanel(plugin, groupName, initialVisibility,
-					(isVisible) -> plugin.setGroupVisibility(groupName, isVisible) // Provide callback
-			);
+			// Get initial visibility and expansion states from the plugin
+			boolean initialVisibility = plugin.isGroupVisible(groupName);
+			boolean initialExpansion = plugin.isGroupExpanded(groupName); // Needs implementation in plugin
+
+			// Create the header panel, passing both states and callbacks
+			GroupHeaderPanel headerPanel = new GroupHeaderPanel(
+					plugin,
+					groupName,
+					initialVisibility,
+					initialExpansion,
+					(isVisible) -> plugin.setGroupVisibility(groupName, isVisible), // Visibility callback
+					(isExpanded) -> { // Expansion callback
+						plugin.setGroupExpansion(groupName, isExpanded); // Needs implementation in plugin
+						rebuild(); // Rebuild panel to show/hide markers
+					});
 			markerView.add(headerPanel, constraints);
 			constraints.gridy++;
 
@@ -217,24 +226,34 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 			markerView.add(currentCreationPanel, constraints);
 			constraints.gridy++;
 
-			// Iterate with index to check if it's the last marker
-			for (int i = 0; i < markersInGroup.size(); i++) {
-				final ScreenMarkerOverlay marker = markersInGroup.get(i);
-				markerView.add(new ScreenMarkerGroupsPanel(plugin, marker), constraints);
-				constraints.gridy++;
-				markerCount++;
+			// Only add marker panels if the group is expanded
+			if (initialExpansion) {
+				// Iterate with index to check if it's the last marker
+				for (int i = 0; i < markersInGroup.size(); i++) {
+					final ScreenMarkerOverlay marker = markersInGroup.get(i);
+					markerView.add(new ScreenMarkerGroupsPanel(plugin, marker), constraints);
+					constraints.gridy++;
+					markerCount++; // Only count markers if group is expanded? Or always? Let's count always for
+									// now.
 
-				// Add 5px spacer only if it's NOT the last marker in the group
-				if (i < markersInGroup.size() - 1) {
-					// Restore original Box spacer
+					// Add 5px spacer only if it's NOT the last marker in the group
+					if (i < markersInGroup.size() - 1) {
+						markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
+						constraints.gridy++;
+					}
+				}
+
+				// Add spacer after the last marker only if the group is expanded and has
+				// markers
+				if (!markersInGroup.isEmpty()) {
 					markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
 					constraints.gridy++;
 				}
+			} else {
+				// If collapsed, still increment marker count if we want total count regardless
+				// of expansion
+				markerCount += markersInGroup.size();
 			}
-
-			// Reduced spacer height from 15 to 5
-			markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
-			constraints.gridy++;
 		}
 
 		// Add vertical glue to push everything to the top

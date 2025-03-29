@@ -78,7 +78,8 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	private static final String CONFIG_GROUP = "screenmarkergroups";
 	private static final String CONFIG_KEY_MARKERS = "markerGroups";
 	private static final String CONFIG_KEY_ORDER = "groupOrder";
-	private static final String CONFIG_KEY_VISIBILITY = "groupVisibility"; // New config key
+	private static final String CONFIG_KEY_VISIBILITY = "groupVisibility";
+	private static final String CONFIG_KEY_EXPANSION = "groupExpansion"; // New config key for expansion
 	private static final String ICON_FILE = "panel_icon.png";
 	private static final String DEFAULT_MARKER_NAME = "Marker";
 	public static final Dimension DEFAULT_SIZE = new Dimension(2, 2);
@@ -93,6 +94,8 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 
 	// Map to store visibility state for each group
 	private final Map<String, Boolean> groupVisibilityStates = new ConcurrentHashMap<>();
+	// Map to store expansion state for each group
+	private final Map<String, Boolean> groupExpansionStates = new ConcurrentHashMap<>();
 
 	@Inject
 	private ConfigManager configManager;
@@ -174,7 +177,8 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		overlayManager.removeIf(ScreenMarkerOverlay.class::isInstance);
 		markerGroups.clear();
 		groupOrderList.clear();
-		groupVisibilityStates.clear(); // Clear visibility state
+		groupVisibilityStates.clear();
+		groupExpansionStates.clear(); // Clear expansion state
 		clientToolbar.removeNavigation(navigationButton);
 		setMouseListenerEnabled(false);
 		creatingScreenMarker = false;
@@ -191,7 +195,8 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		overlayManager.removeIf(ScreenMarkerOverlay.class::isInstance);
 		markerGroups.clear();
 		groupOrderList.clear();
-		groupVisibilityStates.clear(); // Clear visibility state
+		groupVisibilityStates.clear();
+		groupExpansionStates.clear(); // Clear expansion state
 		loadGroupsConfig();
 		// Re-add overlays respecting group visibility
 		markerGroups.forEach((groupName, overlays) -> {
@@ -298,7 +303,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			if (isGroupVisible(targetGroup)) {
 				overlayManager.add(screenMarkerOverlay);
 			}
-			updateGroupsConfig(); // This will also save visibility config now
+			updateGroupsConfig(); // This saves markers, order, visibility, and expansion
 		} else {
 			aborted = true;
 		}
@@ -340,7 +345,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		if (removed) {
 			overlayManager.remove(markerToDelete);
 			overlayManager.resetOverlay(markerToDelete);
-			updateGroupsConfig(); // This will also save visibility config now
+			updateGroupsConfig(); // This saves markers, order, visibility, and expansion
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
@@ -358,12 +363,13 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	}
 
 	public void updateGroupsConfig() {
-		if (markerGroups.isEmpty()) {
+		boolean shouldSaveMarkers = !markerGroups.isEmpty();
+		boolean shouldSaveOrder = !groupOrderList.isEmpty();
+		boolean shouldSaveVisibility = !groupVisibilityStates.isEmpty();
+		boolean shouldSaveExpansion = !groupExpansionStates.isEmpty();
+
+		if (!shouldSaveMarkers) {
 			configManager.unsetConfiguration(CONFIG_GROUP, CONFIG_KEY_MARKERS);
-			configManager.unsetConfiguration(CONFIG_GROUP, CONFIG_KEY_ORDER);
-			// Don't unset visibility here, let updateVisibilityConfig handle it
-			updateVisibilityConfig(); // Save potentially empty visibility map
-			return;
 		} else {
 			Map<String, List<ScreenMarker>> groupsToSave = new HashMap<>();
 			markerGroups.forEach((groupName, overlayList) -> {
@@ -377,19 +383,24 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 
 		// Save group order
-		List<String> orderToSave = groupOrderList.stream()
-				.filter(markerGroups::containsKey)
-				.collect(Collectors.toList());
-
-		if (orderToSave.isEmpty()) {
+		if (!shouldSaveOrder) {
 			configManager.unsetConfiguration(CONFIG_GROUP, CONFIG_KEY_ORDER);
 		} else {
-			final String orderJson = gson.toJson(orderToSave);
-			configManager.setConfiguration(CONFIG_GROUP, CONFIG_KEY_ORDER, orderJson);
+			// Filter order list to only contain existing groups before saving
+			List<String> orderToSave = groupOrderList.stream()
+					.filter(markerGroups::containsKey)
+					.collect(Collectors.toList());
+			if (orderToSave.isEmpty()) {
+				configManager.unsetConfiguration(CONFIG_GROUP, CONFIG_KEY_ORDER);
+			} else {
+				final String orderJson = gson.toJson(orderToSave);
+				configManager.setConfiguration(CONFIG_GROUP, CONFIG_KEY_ORDER, orderJson);
+			}
 		}
 
-		// Save visibility states separately
+		// Save visibility and expansion states separately
 		updateVisibilityConfig();
+		updateExpansionConfig();
 	}
 
 	/**
@@ -407,10 +418,26 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Saves the current group expansion states to the config manager.
+	 */
+	private void updateExpansionConfig() {
+		// Clean up expansion states for groups that no longer exist
+		groupExpansionStates.keySet().retainAll(markerGroups.keySet());
+
+		if (groupExpansionStates.isEmpty()) {
+			configManager.unsetConfiguration(CONFIG_GROUP, CONFIG_KEY_EXPANSION);
+		} else {
+			final String expansionJson = gson.toJson(groupExpansionStates);
+			configManager.setConfiguration(CONFIG_GROUP, CONFIG_KEY_EXPANSION, expansionJson);
+		}
+	}
+
 	private void loadGroupsConfig() {
 		markerGroups.clear();
 		groupOrderList.clear();
-		groupVisibilityStates.clear(); // Clear before loading
+		groupVisibilityStates.clear();
+		groupExpansionStates.clear(); // Clear before loading
 
 		final String markersJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_MARKERS);
 		if (!Strings.isNullOrEmpty(markersJson)) {
@@ -488,8 +515,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		groupOrderList.retainAll(markerGroups.keySet());
 
 		// Load Group Visibility States
-		final String visibilityJson = configManager.getConfiguration(CONFIG_GROUP,
-				CONFIG_KEY_VISIBILITY);
+		final String visibilityJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_VISIBILITY);
 		if (!Strings.isNullOrEmpty(visibilityJson)) {
 			try {
 				final Map<String, Boolean> loadedVisibility = gson.fromJson(visibilityJson,
@@ -509,6 +535,28 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				groupVisibilityStates.clear(); // Reset on error
 			}
 		}
+
+		// Load Group Expansion States
+		final String expansionJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_EXPANSION);
+		if (!Strings.isNullOrEmpty(expansionJson)) {
+			try {
+				final Map<String, Boolean> loadedExpansion = gson.fromJson(expansionJson,
+						new TypeToken<HashMap<String, Boolean>>() {
+						}.getType());
+
+				if (loadedExpansion != null) {
+					// Only load states for groups that actually exist
+					loadedExpansion.forEach((groupName, isExpanded) -> {
+						if (markerGroups.containsKey(groupName)) {
+							groupExpansionStates.put(groupName, isExpanded);
+						}
+					});
+				}
+			} catch (Exception e) {
+				System.err.println("Error parsing group expansion JSON: " + e.getMessage());
+				groupExpansionStates.clear(); // Reset on error
+			}
+		}
 	}
 
 	/**
@@ -519,7 +567,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	 * @return True if the group is visible, false otherwise.
 	 */
 	public boolean isGroupVisible(String groupName) {
-		return groupVisibilityStates.getOrDefault(groupName, true);
+		return groupVisibilityStates.getOrDefault(groupName, true); // Default to visible
 	}
 
 	/**
@@ -560,12 +608,41 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Checks if a group is currently set to be expanded.
+	 * Defaults to true if the group has no specific state saved.
+	 *
+	 * @param groupName The name of the group.
+	 * @return True if the group is expanded, false otherwise.
+	 */
+	public boolean isGroupExpanded(String groupName) {
+		return groupExpansionStates.getOrDefault(groupName, true); // Default to expanded
+	}
+
+	/**
+	 * Sets the expansion state for a specific group and saves the configuration.
+	 * Note: The UI update (showing/hiding markers) is handled by the panel's
+	 * rebuild triggered by the callback.
+	 *
+	 * @param groupName  The name of the group.
+	 * @param isExpanded The desired expansion state.
+	 */
+	public void setGroupExpansion(String groupName, boolean isExpanded) {
+		if (!markerGroups.containsKey(groupName)) {
+			return; // Ignore if group doesn't exist
+		}
+		groupExpansionStates.put(groupName, isExpanded);
+		updateExpansionConfig(); // Save the change
+		// No need to directly manipulate overlays here, panel rebuild handles it
+	}
+
 	public boolean addGroup(String name) {
 		if (Strings.isNullOrEmpty(name) || markerGroups.containsKey(name)) {
 			return false;
 		}
 		markerGroups.put(name, new ArrayList<>());
 		groupVisibilityStates.put(name, true); // Default new group to visible
+		groupExpansionStates.put(name, true); // Default new group to expanded
 		int insertIndex = groupOrderList.size();
 		if (groupOrderList.contains(IMPORTED_GROUP)) {
 			insertIndex = groupOrderList.indexOf(IMPORTED_GROUP);
@@ -575,7 +652,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 		groupOrderList.add(insertIndex, name);
 
-		updateGroupsConfig(); // Saves markers, order, and visibility
+		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 		return true;
 	}
@@ -619,8 +696,9 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 
 		markerGroups.remove(groupName);
 		groupOrderList.remove(groupName);
-		groupVisibilityStates.remove(groupName); // Remove visibility state
-		updateGroupsConfig(); // Saves markers, order, and visibility
+		groupVisibilityStates.remove(groupName);
+		groupExpansionStates.remove(groupName); // Remove expansion state
+		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 	}
 
@@ -634,12 +712,13 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 
 		List<ScreenMarkerOverlay> markers = markerGroups.remove(oldName);
-		Boolean visibility = groupVisibilityStates.remove(oldName); // Get and remove old visibility state
+		Boolean visibility = groupVisibilityStates.remove(oldName);
+		Boolean expansion = groupExpansionStates.remove(oldName); // Get and remove old expansion state
 
 		if (markers != null) {
 			markerGroups.put(newName, markers);
-			groupVisibilityStates.put(newName, visibility != null ? visibility : true); // Add new state, preserving old
-																						// if possible
+			groupVisibilityStates.put(newName, visibility != null ? visibility : true); // Preserve visibility
+			groupExpansionStates.put(newName, expansion != null ? expansion : true); // Preserve expansion
 
 			int index = groupOrderList.indexOf(oldName);
 			if (index != -1) {
@@ -654,7 +733,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				}
 				groupOrderList.add(insertIndex, newName);
 			}
-			updateGroupsConfig(); // Saves markers, order, and visibility
+			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 			return true;
 		}
@@ -667,7 +746,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			return;
 		}
 		Collections.swap(groupOrderList, currentIndex, currentIndex - 1);
-		updateGroupsConfig(); // Saves markers, order, and visibility
+		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 	}
 
@@ -683,7 +762,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			return;
 		}
 		Collections.swap(groupOrderList, currentIndex, currentIndex + 1);
-		updateGroupsConfig(); // Saves markers, order, and visibility
+		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 	}
 
@@ -704,7 +783,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		int currentIndex = groupList.indexOf(markerOverlay);
 		if (currentIndex > 0) {
 			Collections.swap(groupList, currentIndex, currentIndex - 1);
-			updateGroupsConfig(); // Saves markers, order, and visibility
+			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
@@ -717,7 +796,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		int currentIndex = groupList.indexOf(markerOverlay);
 		if (currentIndex >= 0 && currentIndex < groupList.size() - 1) {
 			Collections.swap(groupList, currentIndex, currentIndex + 1);
-			updateGroupsConfig(); // Saves markers, order, and visibility
+			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
@@ -739,7 +818,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				// Add only if target group is visible and marker is visible
 				overlayManager.add(markerOverlay);
 			}
-			updateGroupsConfig(); // Saves markers, order, and visibility
+			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
