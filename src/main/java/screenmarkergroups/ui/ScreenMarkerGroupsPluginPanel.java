@@ -181,6 +181,7 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.fill = GridBagConstraints.HORIZONTAL;
 		constraints.weightx = 1;
+		constraints.weighty = 0; // Default weighty to 0 for components
 		constraints.gridx = 0;
 		constraints.gridy = 0;
 
@@ -214,22 +215,35 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 			markerView.add(currentCreationPanel, constraints);
 			constraints.gridy++;
 
-			for (final ScreenMarkerOverlay marker : markersInGroup) {
+			// Iterate with index to check if it's the last marker
+			for (int i = 0; i < markersInGroup.size(); i++) {
+				final ScreenMarkerOverlay marker = markersInGroup.get(i);
 				markerView.add(new ScreenMarkerGroupsPanel(plugin, marker), constraints);
 				constraints.gridy++;
 				markerCount++;
 
-				markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
-				constraints.gridy++;
+				// Add 5px spacer only if it's NOT the last marker in the group
+				if (i < markersInGroup.size() - 1) {
+					// Restore original Box spacer
+					markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
+					constraints.gridy++;
+				}
 			}
 
+			// Restore original Box spacer
 			markerView.add(Box.createRigidArea(new Dimension(0, 15)), constraints);
 			constraints.gridy++;
 		}
 
+		// Add vertical glue to push everything to the top
+		constraints.weighty = 1;
+		markerView.add(Box.createVerticalGlue(), constraints);
+		constraints.gridy++;
+		constraints.weighty = 0; // Reset weighty for the next component
+
+		// Add the 'no markers' panel if needed
 		boolean empty = markerCount == 0;
 		noMarkersPanel.setVisible(empty);
-
 		markerView.add(noMarkersPanel, constraints);
 		constraints.gridy++;
 
