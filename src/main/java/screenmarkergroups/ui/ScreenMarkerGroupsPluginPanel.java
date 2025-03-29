@@ -52,6 +52,7 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.PluginErrorPanel;
 import net.runelite.client.util.ImageUtil;
+import java.awt.Component; // Import Component
 
 public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 	@Getter
@@ -251,6 +252,15 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 		}
 
 		addGroupButton.setVisible(!on);
+
+		// Enable/disable controls on existing marker and group panels
+		for (Component comp : markerView.getComponents()) {
+			if (comp instanceof ScreenMarkerGroupsPanel) {
+				((ScreenMarkerGroupsPanel) comp).setControlsEnabled(!on);
+			} else if (comp instanceof GroupHeaderPanel) {
+				((GroupHeaderPanel) comp).setControlsEnabled(!on);
+			}
+		}
 	}
 
 	public Map<String, ScreenMarkerGroupsCreationPanel> getCreationPanelsMap() {

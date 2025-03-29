@@ -22,153 +22,207 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups.ui; // Correct package
+package screenmarkergroups.ui;
 
-import screenmarkergroups.ScreenMarkerGroupsPlugin; // Correct import
+import screenmarkergroups.ScreenMarkerGroupsPlugin;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.event.MouseAdapter; // Added import
-import java.awt.event.MouseEvent; // Added import
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import javax.swing.JLabel;
-import javax.swing.JMenuItem; // Added import
-import javax.swing.JOptionPane; // Added import for dialogs
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JPopupMenu; // Added import
-import javax.swing.SwingUtilities; // Added import
+import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
-import net.runelite.client.util.ImageUtil; // Added for icon loading
-import javax.swing.ImageIcon; // Added for icon loading
-import java.awt.image.BufferedImage; // Added for icon loading
+import net.runelite.client.util.ImageUtil;
+import javax.swing.ImageIcon;
+import java.awt.image.BufferedImage;
 
 /**
  * A panel that represents the header for a screen marker group.
- * Displays the group name and will later include controls for
- * collapsing/expanding and context menus.
+ * Displays the group name and includes controls for configuration and adding
+ * markers.
  */
 class GroupHeaderPanel extends JPanel {
-    private static final ImageIcon ADD_MARKER_ICON;
-    private static final ImageIcon ADD_MARKER_HOVER_ICON;
+	private static final ImageIcon ADD_MARKER_ICON;
+	private static final ImageIcon ADD_MARKER_HOVER_ICON;
+	private static final ImageIcon CONFIGURE_ICON;
+	private static final ImageIcon CONFIGURE_HOVER_ICON;
 
-    private final JLabel nameLabel;
-    private final String groupName; // Store group name
-    private final ScreenMarkerGroupsPlugin plugin; // Store plugin reference
-    private final JLabel addMarkerButton = new JLabel(ADD_MARKER_ICON); // Add marker button
+	private final JLabel nameLabel;
+	private final String groupName;
+	private final ScreenMarkerGroupsPlugin plugin;
+	private final JLabel configureLabel = new JLabel();
+	private final JLabel addMarkerButton = new JLabel();
+	private final JPopupMenu contextMenu;
 
-    static {
-        // Load the add marker icon
-        final BufferedImage addIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "add_icon.png");
-        ADD_MARKER_ICON = new ImageIcon(addIcon);
-        ADD_MARKER_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(addIcon, 0.53f));
-    }
+	static {
+		// Load icons
+		final BufferedImage addIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "add_icon.png");
+		ADD_MARKER_ICON = new ImageIcon(addIcon);
+		ADD_MARKER_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(addIcon, -100));
 
-    GroupHeaderPanel(ScreenMarkerGroupsPlugin plugin, String groupName) {
-        this.plugin = plugin;
-        this.groupName = groupName;
+		final BufferedImage configureIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class,
+				"configure.png");
+		CONFIGURE_ICON = new ImageIcon(configureIcon);
+		CONFIGURE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(configureIcon, -100));
+	}
 
-        setLayout(new BorderLayout());
-        setBackground(ColorScheme.DARKER_GRAY_COLOR); // Or a slightly different color for distinction
-        setBorder(new EmptyBorder(5, 5, 5, 5)); // Add some padding
+	/**
+	 * Updates the enabled state of context menu items based on the group type and
+	 * count.
+	 */
+	private void updateContextMenuItems() {
+		// Find menu items
+		JMenuItem renameItem = (JMenuItem) contextMenu.getComponent(0);
+		JMenuItem deleteItem = (JMenuItem) contextMenu.getComponent(1);
+		JMenuItem moveUpItem = (JMenuItem) contextMenu.getComponent(3); // Skip separator
+		JMenuItem moveDownItem = (JMenuItem) contextMenu.getComponent(4);
 
-        nameLabel = new JLabel(groupName);
-        nameLabel.setFont(FontManager.getRunescapeBoldFont());
-        nameLabel.setForeground(Color.WHITE); // Standard white for now
+		boolean isSpecialGroup = groupName.equals(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP)
+				|| groupName.equals(ScreenMarkerGroupsPlugin.IMPORTED_GROUP);
+		// TODO: Add more sophisticated move logic based on actual position
+		boolean canMove = plugin.getMarkerGroups().size() > 1 && !isSpecialGroup;
 
-        // Setup Add Marker button
-        addMarkerButton.setToolTipText("Add new marker to this group");
-        addMarkerButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (SwingUtilities.isLeftMouseButton(e)) {
-                    // Initiate creation process in the plugin, targeting this specific group
-                    plugin.startCreation(null, null, groupName);
-                    // Immediately update the panel UI to show the creation panel
-                    if (plugin.getPluginPanel() != null) {
-                        plugin.getPluginPanel().setCreation(true);
-                    }
-                }
-            }
+		renameItem.setEnabled(!isSpecialGroup);
+		deleteItem.setEnabled(!isSpecialGroup);
+		moveUpItem.setEnabled(canMove);
+		moveDownItem.setEnabled(canMove);
+	}
 
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                addMarkerButton.setIcon(ADD_MARKER_HOVER_ICON);
-            }
+	/**
+	 * Sets up the context menu for the group header.
+	 * 
+	 * @return The configured JPopupMenu.
+	 */
+	private JPopupMenu setupContextMenu() {
+		final JPopupMenu popupMenu = new JPopupMenu();
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                addMarkerButton.setIcon(ADD_MARKER_ICON);
-            }
-        });
+		final JMenuItem renameItem = new JMenuItem("Rename Group");
+		renameItem.addActionListener(e -> {
+			String newName = JOptionPane.showInputDialog(
+					GroupHeaderPanel.this,
+					"Enter new name for group '" + groupName + "':",
+					"Rename Group",
+					JOptionPane.PLAIN_MESSAGE);
 
-        // Create context menu
-        final JPopupMenu contextMenu = new JPopupMenu();
+			if (!com.google.common.base.Strings.isNullOrEmpty(newName)) {
+				if (!plugin.renameGroup(groupName, newName)) {
+					JOptionPane.showMessageDialog(
+							GroupHeaderPanel.this,
+							"Failed to rename group. New name may be invalid or already exist.",
+							"Rename Group Error",
+							JOptionPane.ERROR_MESSAGE);
+				}
+			}
+		});
 
-        final JMenuItem renameItem = new JMenuItem("Rename Group");
-        renameItem.addActionListener(e -> {
-            String newName = JOptionPane.showInputDialog(
-                    GroupHeaderPanel.this,
-                    "Enter new name for group '" + groupName + "':",
-                    "Rename Group",
-                    JOptionPane.PLAIN_MESSAGE);
+		final JMenuItem deleteItem = new JMenuItem("Delete Group");
+		deleteItem.addActionListener(e -> plugin.deleteGroup(groupName));
 
-            if (!com.google.common.base.Strings.isNullOrEmpty(newName)) {
-                if (!plugin.renameGroup(groupName, newName)) {
-                    JOptionPane.showMessageDialog(
-                            GroupHeaderPanel.this,
-                            "Failed to rename group. New name may be invalid or already exist.",
-                            "Rename Group Error",
-                            JOptionPane.ERROR_MESSAGE);
-                }
-                // Panel will be rebuilt automatically by renameGroup if successful
-            }
-        });
+		final JMenuItem moveUpItem = new JMenuItem("Move Up");
+		moveUpItem.addActionListener(e -> plugin.moveGroupUp(groupName));
 
-        final JMenuItem deleteItem = new JMenuItem("Delete Group");
-        deleteItem.addActionListener(e -> plugin.deleteGroup(groupName)); // Call the plugin method
+		final JMenuItem moveDownItem = new JMenuItem("Move Down");
+		moveDownItem.addActionListener(e -> plugin.moveGroupDown(groupName));
 
-        final JMenuItem moveUpItem = new JMenuItem("Move Up");
-        moveUpItem.addActionListener(e -> plugin.moveGroupUp(groupName)); // Call plugin method
+		popupMenu.add(renameItem);
+		popupMenu.add(deleteItem);
+		popupMenu.addSeparator();
+		popupMenu.add(moveUpItem);
+		popupMenu.add(moveDownItem);
 
-        final JMenuItem moveDownItem = new JMenuItem("Move Down");
-        moveDownItem.addActionListener(e -> plugin.moveGroupDown(groupName)); // Call plugin method
+		return popupMenu;
+	}
 
-        contextMenu.add(renameItem);
-        contextMenu.add(deleteItem);
-        contextMenu.addSeparator();
-        contextMenu.add(moveUpItem);
-        contextMenu.add(moveDownItem);
+	GroupHeaderPanel(ScreenMarkerGroupsPlugin plugin, String groupName) {
+		this.plugin = plugin;
+		this.groupName = groupName;
 
-        // Add mouse listener for context menu
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (SwingUtilities.isRightMouseButton(e)) {
-                    // Disable move options for special groups or if only one group exists
-                    boolean isSpecialGroup = groupName.equals(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP)
-                            || groupName.equals(ScreenMarkerGroupsPlugin.IMPORTED_GROUP);
-                    boolean canMove = plugin.getMarkerGroups().size() > 1 && !isSpecialGroup; // Basic check
+		setLayout(new BorderLayout());
+		setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		setBorder(new EmptyBorder(5, 5, 5, 5));
 
-                    renameItem.setEnabled(!isSpecialGroup); // Cannot rename special groups
-                    deleteItem.setEnabled(!isSpecialGroup);
-                    moveUpItem.setEnabled(canMove);
-                    moveDownItem.setEnabled(canMove);
+		nameLabel = new JLabel(groupName);
+		nameLabel.setFont(FontManager.getRunescapeBoldFont());
+		nameLabel.setForeground(Color.WHITE);
 
-                    contextMenu.show(GroupHeaderPanel.this, e.getX(), e.getY());
-                }
-            }
-        });
+		// Setup context menu first
+		this.contextMenu = setupContextMenu();
 
-        JPanel rightActions = new JPanel(new BorderLayout());
-        rightActions.setBackground(getBackground());
-        rightActions.add(addMarkerButton, BorderLayout.EAST);
+		// Setup Configure button
+		configureLabel.setIcon(CONFIGURE_ICON);
+		configureLabel.setToolTipText("Configure group");
+		configureLabel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				// Only show context menu if the label is enabled
+				if (configureLabel.isEnabled() && SwingUtilities.isLeftMouseButton(e)) {
+					updateContextMenuItems(); // Update states before showing
+					contextMenu.show(configureLabel, e.getX(), e.getY());
+				}
+			}
 
-        add(nameLabel, BorderLayout.CENTER);
-        add(rightActions, BorderLayout.EAST); // Add actions panel to the east
-    }
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				configureLabel.setIcon(CONFIGURE_HOVER_ICON);
+			}
 
-    // Method to update name if renaming is implemented
-    // public void updateGroupName(String newName) {
-    // nameLabel.setText(newName);
-    // }
+			@Override
+			public void mouseExited(MouseEvent e) {
+				configureLabel.setIcon(CONFIGURE_ICON);
+			}
+		});
+
+		// Setup Add Marker button
+		addMarkerButton.setIcon(ADD_MARKER_ICON);
+		addMarkerButton.setToolTipText("Add new marker to this group");
+		addMarkerButton.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				if (SwingUtilities.isLeftMouseButton(e)) {
+					plugin.startCreation(null, null, groupName);
+					if (plugin.getPluginPanel() != null) {
+						plugin.getPluginPanel().setCreation(true);
+					}
+				}
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				addMarkerButton.setIcon(ADD_MARKER_HOVER_ICON);
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e) {
+				addMarkerButton.setIcon(ADD_MARKER_ICON);
+			}
+		});
+
+		// Panel for right-side controls
+		JPanel rightActions = new JPanel(new BorderLayout(3, 0)); // Gap between buttons
+		rightActions.setBackground(getBackground());
+		rightActions.add(configureLabel, BorderLayout.CENTER); // Configure on the left
+		rightActions.add(addMarkerButton, BorderLayout.EAST); // Add on the right
+
+		// Add components to the main panel
+		add(nameLabel, BorderLayout.CENTER);
+		add(rightActions, BorderLayout.EAST);
+	}
+
+	/**
+	 * Enables or disables the configuration controls for this group header.
+	 * 
+	 * @param enabled True to enable, false to disable.
+	 */
+	void setControlsEnabled(boolean enabled) {
+		configureLabel.setEnabled(enabled);
+		// Optionally, change icon to a disabled version if available/needed
+		// configureLabel.setIcon(enabled ? CONFIGURE_ICON : CONFIGURE_DISABLED_ICON);
+		configureLabel.setToolTipText(enabled ? "Configure group" : null);
+	}
 }

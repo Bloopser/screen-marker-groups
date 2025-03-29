@@ -89,15 +89,20 @@ class ScreenMarkerGroupsPanel extends JPanel {
 	private static final ImageIcon INVISIBLE_ICON;
 	private static final ImageIcon INVISIBLE_HOVER_ICON;
 
+	private static final ImageIcon CONFIGURE_ICON;
+	private static final ImageIcon CONFIGURE_HOVER_ICON;
+
 	private static final ImageIcon DELETE_ICON;
 	private static final ImageIcon DELETE_HOVER_ICON;
 
 	private final ScreenMarkerGroupsPlugin plugin;
 	private final ScreenMarkerOverlay marker;
+	private final JPopupMenu contextMenu;
 
 	private final JLabel borderColorIndicator = new JLabel();
 	private final JLabel fillColorIndicator = new JLabel();
 	private final JLabel labelIndicator = new JLabel();
+	private final JLabel configureLabel = new JLabel();
 	private final JLabel visibilityLabel = new JLabel();
 	private final JLabel deleteLabel = new JLabel();
 
@@ -148,6 +153,10 @@ class ScreenMarkerGroupsPanel extends JPanel {
 				"invisible_icon.png");
 		INVISIBLE_ICON = new ImageIcon(invisibleImg);
 		INVISIBLE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(invisibleImg, -100));
+
+		final BufferedImage configureImg = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "configure.png");
+		CONFIGURE_ICON = new ImageIcon(configureImg);
+		CONFIGURE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(configureImg, -100));
 
 		final BufferedImage deleteImg = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "delete_icon.png");
 		DELETE_ICON = new ImageIcon(deleteImg);
@@ -344,10 +353,37 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
 		rightActions.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
+		// Setup context menu first, so the configure button can use it
+		this.contextMenu = setupContextMenu();
+
+		configureLabel.setIcon(CONFIGURE_ICON);
+		configureLabel.setToolTipText("Configure marker");
+		configureLabel.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent mouseEvent) {
+				// Only show context menu if the label is enabled
+				if (configureLabel.isEnabled() && SwingUtilities.isLeftMouseButton(mouseEvent)) {
+					contextMenu.show(configureLabel, mouseEvent.getX(), mouseEvent.getY());
+				}
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent mouseEvent) {
+				configureLabel.setIcon(CONFIGURE_HOVER_ICON);
+			}
+
+			@Override
+			public void mouseExited(MouseEvent mouseEvent) {
+				configureLabel.setIcon(CONFIGURE_ICON);
+			}
+		});
+
 		visibilityLabel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent mouseEvent) {
-				toggle(!visible);
+				if (visibilityLabel.isEnabled()) {
+					toggle(!visible);
+				}
 			}
 
 			@Override
@@ -366,12 +402,14 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		deleteLabel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent mouseEvent) {
-				int confirm = JOptionPane.showConfirmDialog(ScreenMarkerGroupsPanel.this,
-						"Are you sure you want to permanently delete this screen marker?",
-						"Warning", JOptionPane.OK_CANCEL_OPTION);
+				if (deleteLabel.isEnabled()) {
+					int confirm = JOptionPane.showConfirmDialog(ScreenMarkerGroupsPanel.this,
+							"Are you sure you want to permanently delete this screen marker?",
+							"Warning", JOptionPane.OK_CANCEL_OPTION);
 
-				if (confirm == 0) {
-					plugin.deleteMarker(marker);
+					if (confirm == 0) {
+						plugin.deleteMarker(marker);
+					}
 				}
 			}
 
@@ -386,6 +424,7 @@ class ScreenMarkerGroupsPanel extends JPanel {
 			}
 		});
 
+		rightActions.add(configureLabel); // Add configure button before visibility
 		rightActions.add(visibilityLabel);
 		rightActions.add(deleteLabel);
 
@@ -395,8 +434,8 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		add(nameWrapper, BorderLayout.NORTH);
 		add(bottomContainer, BorderLayout.CENTER);
 
-		// Add context menu for marker actions
-		setupContextMenu();
+		// Context menu is set up earlier now
+		// setupContextMenu(); // Removed this call
 
 		updateVisibility();
 		updateFill();
@@ -524,27 +563,29 @@ class ScreenMarkerGroupsPanel extends JPanel {
 	}
 
 	/**
-	 * Sets up the right-click context menu for the marker panel.
+	 * Sets up the context menu for the marker panel.
+	 * 
+	 * @return The configured JPopupMenu.
 	 */
-	private void setupContextMenu() {
-		final JPopupMenu contextMenu = new JPopupMenu();
+	private JPopupMenu setupContextMenu() {
+		final JPopupMenu popupMenu = new JPopupMenu();
 
 		// --- Move Up ---
 		final JMenuItem moveUpItem = new JMenuItem("Move Up");
 		moveUpItem.addActionListener(e -> plugin.moveMarkerUp(marker));
-		contextMenu.add(moveUpItem);
+		popupMenu.add(moveUpItem);
 
 		// --- Move Down ---
 		final JMenuItem moveDownItem = new JMenuItem("Move Down");
 		moveDownItem.addActionListener(e -> plugin.moveMarkerDown(marker));
-		contextMenu.add(moveDownItem);
+		popupMenu.add(moveDownItem);
 
 		// --- Move to Group ---
 		final JMenu moveToGroupMenu = new JMenu("Move to Group");
-		contextMenu.add(moveToGroupMenu);
+		popupMenu.add(moveToGroupMenu);
 
 		// Populate "Move to Group" submenu dynamically when shown
-		contextMenu.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+		popupMenu.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
 			@Override
 			public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
 				moveToGroupMenu.removeAll();
@@ -578,16 +619,30 @@ class ScreenMarkerGroupsPanel extends JPanel {
 			}
 		});
 
-		// Add listener to the main panel to show the context menu
-		addMouseListener(new MouseAdapter() {
-			@Override
-			public void mousePressed(MouseEvent e) {
-				if (SwingUtilities.isRightMouseButton(e)) {
-					// TODO: Add logic to disable move up/down if marker is at top/bottom of its
-					// group
-					contextMenu.show(ScreenMarkerGroupsPanel.this, e.getX(), e.getY());
-				}
-			}
-		});
+		// Removed the right-click listener from the main panel
+
+		return popupMenu;
+	}
+
+	/**
+	 * Enables or disables the configuration controls for this marker panel.
+	 * 
+	 * @param enabled True to enable, false to disable.
+	 */
+	void setControlsEnabled(boolean enabled) {
+		configureLabel.setEnabled(enabled);
+		// Optionally, change icon to a disabled version if available/needed
+		// configureLabel.setIcon(enabled ? CONFIGURE_ICON : CONFIGURE_DISABLED_ICON);
+		configureLabel.setToolTipText(enabled ? "Configure marker" : null);
+
+		// Also disable other controls that shouldn't be used during creation mode
+		borderColorIndicator.setEnabled(enabled);
+		fillColorIndicator.setEnabled(enabled);
+		labelIndicator.setEnabled(enabled);
+		thicknessSpinner.setEnabled(enabled);
+		visibilityLabel.setEnabled(enabled);
+		deleteLabel.setEnabled(enabled);
+		rename.setEnabled(enabled); // Disable rename link as well
+		// Keep nameInput editable state as is, managed by rename/save/cancel logic
 	}
 }
