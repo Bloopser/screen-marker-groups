@@ -42,6 +42,7 @@ This is useful for setting up markers for specific tasks, bosses, or activities,
 ### Importing
 
 *   **Import from Original Plugin:** Go to the plugin's settings menu (wrench icon next to the plugin name in the main RuneLite settings). Click the checkbox next to **"Import Screen markers"** to copy all markers from the original "Screen Markers" plugin into a new group called "Imported". This is useful for migrating your existing markers.
+    *   *Note:* A client restart might be needed in order for the imported screen markers to appear correctly.
 
 
 #### Features from original plugin:
