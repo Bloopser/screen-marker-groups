@@ -69,6 +69,8 @@ import screenmarkergroups.ui.ScreenMarkerGroupsCreationPanel;
 @PluginDescriptor(name = "Screen Marker Groups", description = "Enable drawing of screen markers on top of the client, organized into groups", tags = {
 		"boxes", "overlay", "panel", "group", "organize" })
 public class ScreenMarkerGroupsPlugin extends Plugin {
+	private static final String OVERLAY_CONFIG_GROUP = "runelite"; // Config group for overlay properties
+
 	@Provides
 	ScreenMarkerGroupsConfig provideConfig(ConfigManager configManager) {
 		return configManager.getConfig(ScreenMarkerGroupsConfig.class);
@@ -881,20 +883,93 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			groupOrderList.add(IMPORTED_GROUP);
 		}
 		int importedCount = 0;
+		long maxId = findMaxMarkerId(); // Find current max ID to avoid potential collisions with newly created
+										// markers
+
 		for (ScreenMarker markerData : loadedMarkers) {
-			if (markerData != null) {
-				boolean exists = importedGroupList.stream()
-						.anyMatch(overlay -> overlay.getMarker().getId() == markerData.getId());
-				if (!exists) {
-					// Pass plugin instance 'this' to the constructor
-					ScreenMarkerOverlay newOverlay = new ScreenMarkerOverlay(markerData, this);
-					importedGroupList.add(newOverlay);
-					overlayManager.add(newOverlay);
-					overlayManager.saveOverlay(newOverlay);
-					importedCount++;
-				}
+			if (markerData == null) {
+				continue;
 			}
+
+			// Apply defaults for potentially missing fields from older plugin versions
+			if (markerData.getColor() == null) {
+				markerData.setColor(ScreenMarkerGroupsPluginPanel.DEFAULT_BORDER_COLOR);
+			}
+			if (markerData.getFill() == null) {
+				markerData.setFill(ScreenMarkerGroupsPluginPanel.DEFAULT_FILL_COLOR);
+			}
+			if (markerData.getBorderThickness() <= 0) {
+				markerData.setBorderThickness(ScreenMarkerGroupsPluginPanel.DEFAULT_BORDER_THICKNESS);
+			}
+
+			// Generate a new unique ID
+			long newId = Math.max(Instant.now().toEpochMilli(), maxId + 1);
+			maxId = newId; // Update maxId for the next iteration
+
+			// Create a new marker object with the new ID and copied properties
+			ScreenMarker newMarker = new ScreenMarker(
+					newId,
+					markerData.getName(),
+					markerData.getBorderThickness(),
+					markerData.getColor(),
+					markerData.getFill(),
+					markerData.isVisible(), // Keep original visibility
+					markerData.isLabelled());
+
+			// Create the overlay for the new marker
+			ScreenMarkerOverlay newOverlay = new ScreenMarkerOverlay(newMarker, this);
+
+			// Try to read original position and size using original ID
+			long originalId = markerData.getId();
+			Point originalLocation = parsePoint(
+					configManager.getConfiguration(OVERLAY_CONFIG_GROUP, "marker" + originalId + "_preferredLocation"));
+			Dimension originalSize = parseDimension(
+					configManager.getConfiguration(OVERLAY_CONFIG_GROUP, "marker" + originalId + "_preferredSize"));
+
+			// Set location/size on the overlay object
+			if (originalLocation != null) {
+				newOverlay.setPreferredLocation(originalLocation);
+			}
+			if (originalSize != null) {
+				newOverlay.setPreferredSize(originalSize);
+			}
+
+			// Explicitly save the location and size config using the NEW ID
+			String newLocationKey = "marker" + newId + "_preferredLocation";
+			String newSizeKey = "marker" + newId + "_preferredSize";
+
+			if (originalLocation != null) {
+				configManager.setConfiguration(OVERLAY_CONFIG_GROUP, newLocationKey,
+						originalLocation.x + ":" + originalLocation.y);
+			} else {
+				// Ensure any old config for this new ID is removed if no location found
+				configManager.unsetConfiguration(OVERLAY_CONFIG_GROUP, newLocationKey);
+			}
+
+			if (originalSize != null) {
+				configManager.setConfiguration(OVERLAY_CONFIG_GROUP, newSizeKey,
+						originalSize.width + "x" + originalSize.height);
+			} else {
+				// Ensure any old config for this new ID is removed if no size found
+				configManager.unsetConfiguration(OVERLAY_CONFIG_GROUP, newSizeKey);
+			}
+
+			// Add the new overlay to the internal group list
+			importedGroupList.add(newOverlay);
+
+			// Add to overlay manager IF the group is visible AND the marker is visible
+			// This controls runtime visibility
+			if (isGroupVisible(IMPORTED_GROUP) && newMarker.isVisible()) {
+				overlayManager.add(newOverlay);
+			}
+
+			// Save the overlay's marker data (JSON blob) using the OverlayManager
+			// This likely doesn't handle position/size, which we now do explicitly above
+			overlayManager.saveOverlay(newOverlay);
+
+			importedCount++;
 		}
+
 		if (importedCount > 0) {
 			updateGroupsConfig();
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
@@ -905,6 +980,70 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			JOptionPane.showMessageDialog(pluginPanel,
 					"No new markers were imported (they might already exist in the 'Imported' group).",
 					"Import Information", JOptionPane.INFORMATION_MESSAGE);
+		}
+	}
+
+	/**
+	 * Finds the maximum marker ID currently used within this plugin.
+	 * Used to help generate unique IDs during import.
+	 *
+	 * @return The maximum ID found, or 0 if no markers exist.
+	 */
+	private long findMaxMarkerId() {
+		return markerGroups.values().stream()
+				.flatMap(List::stream)
+				.map(overlay -> overlay.getMarker().getId())
+				.max(Long::compare)
+				.orElse(0L);
+	}
+
+	/**
+	 * Parses a Point object from a string representation "x:y".
+	 *
+	 * @param pointString The string to parse.
+	 * @return The parsed Point, or null if parsing fails or input is null/empty.
+	 */
+	private Point parsePoint(String pointString) {
+		if (Strings.isNullOrEmpty(pointString)) {
+			return null;
+		}
+		String[] parts = pointString.split(":");
+		if (parts.length != 2) {
+			return null;
+		}
+		try {
+			int x = Integer.parseInt(parts[0]);
+			int y = Integer.parseInt(parts[1]);
+			return new Point(x, y);
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Parses a Dimension object from a string representation "widthxheight".
+	 *
+	 * @param dimensionString The string to parse.
+	 * @return The parsed Dimension, or null if parsing fails or input is
+	 *         null/empty.
+	 */
+	private Dimension parseDimension(String dimensionString) {
+		if (Strings.isNullOrEmpty(dimensionString)) {
+			return null;
+		}
+		String[] parts = dimensionString.split("x");
+		if (parts.length != 2) {
+			return null;
+		}
+		try {
+			int width = Integer.parseInt(parts[0]);
+			int height = Integer.parseInt(parts[1]);
+			// Ensure minimum dimensions
+			width = Math.max(width, 1);
+			height = Math.max(height, 1);
+			return new Dimension(width, height);
+		} catch (NumberFormatException e) {
+			return null;
 		}
 	}
 }

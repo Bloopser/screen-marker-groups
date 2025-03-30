@@ -65,10 +65,11 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 	private static final ImageIcon ADD_MARKER_ICON;
 	private static final ImageIcon ADD_MARKER_HOVER_ICON;
 
-	private static final Color DEFAULT_BORDER_COLOR = Color.GREEN;
-	private static final Color DEFAULT_FILL_COLOR = new Color(0, 255, 0, 0);
+	// Public for access during import defaults
+	public static final Color DEFAULT_BORDER_COLOR = Color.GREEN;
+	public static final Color DEFAULT_FILL_COLOR = new Color(0, 255, 0, 0);
 
-	private static final int DEFAULT_BORDER_THICKNESS = 3;
+	public static final int DEFAULT_BORDER_THICKNESS = 3;
 
 	public static final Color SELECTED_COLOR = DEFAULT_BORDER_COLOR;
 	public static final Color SELECTED_FILL_COLOR = DEFAULT_FILL_COLOR;
