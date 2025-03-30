@@ -220,46 +220,52 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	}
 
 	/**
-	 * Starts the marker creation process, targeting a specific group.
-	 * Called primarily from the UI (+ button).
+	 * Enters the marker creation mode, preparing the plugin and UI.
+	 * Called from the UI (+ button).
+	 *
+	 * @param groupName The target group for the new marker.
 	 */
-	public void startCreation(Point location, Dimension size, String groupName) {
+	public void enterCreationMode(String groupName) {
 		this.targetGroupNameForCreation = markerGroups.containsKey(groupName) ? groupName : UNASSIGNED_GROUP;
 		this.creatingScreenMarker = true;
 		this.setMouseListenerEnabled(true);
-		this.currentMarker = null;
-		this.startLocation = null;
-		this.drawingScreenMarker = false;
+		this.currentMarker = null; // Clear any previous marker being created
+		this.startLocation = null; // Clear start location
+		this.drawingScreenMarker = false; // Not drawing yet
+		this.selectedWidgetBounds = null; // Clear selected widget
 
+		// Reset the creation overlay
 		overlay.setPreferredLocation(null);
 		overlay.setPreferredSize(null);
 
-		if (location != null) {
-			initializeMarkerCreation(location, size);
-		}
-
+		// Update the UI panel
 		if (pluginPanel != null) {
 			pluginPanel.setCreation(true);
 		}
 	}
 
-	public void startCreation(Point location) {
-		startCreation(location, DEFAULT_SIZE, UNASSIGNED_GROUP);
-	}
-
 	/**
-	 * Initializes the actual ScreenMarker object and overlay state.
-	 * Called by the mouse listener upon the first click/drag in the game window
-	 * after creation mode is enabled.
+	 * Prepares a new marker object and sets the initial bounds for the creation
+	 * overlay.
+	 * Called by the mouse listener on the first click/drag or when clicking a
+	 * widget.
+	 *
+	 * @param location The initial location for the marker.
+	 * @param size     The initial size for the marker.
 	 */
-	public void initializeMarkerCreation(Point location, Dimension size) {
-		if (currentMarker != null || location == null)
+	public void startCreation(Point location, Dimension size) {
+		// Don't create if already created or location is invalid
+		if (currentMarker != null || location == null) {
 			return;
+		}
 
-		long nextMarkerId = markerGroups.values().stream().mapToLong(List::size).sum() + 1;
+		// Generate a unique ID (simple increment for now, consider better approach if
+		// needed)
+		long nextMarkerId = findMaxMarkerId() + 1;
+
 		currentMarker = new ScreenMarker(
-				Instant.now().toEpochMilli(),
-				DEFAULT_MARKER_NAME + " " + nextMarkerId,
+				nextMarkerId, // Use generated ID
+				DEFAULT_MARKER_NAME + " " + nextMarkerId, // Default name
 				ScreenMarkerGroupsPluginPanel.SELECTED_BORDER_THICKNESS,
 				ScreenMarkerGroupsPluginPanel.SELECTED_COLOR,
 				ScreenMarkerGroupsPluginPanel.SELECTED_FILL_COLOR,
@@ -275,12 +281,14 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	public void finishCreation(boolean aborted) {
 		ScreenMarker marker = currentMarker;
 		String targetGroup = targetGroupNameForCreation != null ? targetGroupNameForCreation : UNASSIGNED_GROUP;
+		// Get bounds from the creation overlay, which is set correctly by startCreation
 		Rectangle overlayBounds = overlay.getBounds();
 
 		if (!aborted && marker != null && overlayBounds != null && overlayBounds.width > 0
 				&& overlayBounds.height > 0) {
 			// Pass plugin instance 'this' to the constructor
 			final ScreenMarkerOverlay screenMarkerOverlay = new ScreenMarkerOverlay(marker, this);
+			// Use the overlay's bounds for location and size
 			screenMarkerOverlay.setPreferredLocation(overlayBounds.getLocation());
 			screenMarkerOverlay.setPreferredSize(overlayBounds.getSize());
 
@@ -355,7 +363,8 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 
 	void resizeMarker(Point point) {
 		if (startLocation == null) {
-			initializeMarkerCreation(point, DEFAULT_SIZE);
+			// Call the renamed method
+			startCreation(point, DEFAULT_SIZE);
 			return;
 		}
 		drawingScreenMarker = true;

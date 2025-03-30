@@ -160,7 +160,8 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 		addMarker.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent mouseEvent) {
-				setCreation(true);
+				// Call the new method to enter creation mode for the "Unassigned" group
+				plugin.enterCreationMode(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP);
 			}
 
 			@Override

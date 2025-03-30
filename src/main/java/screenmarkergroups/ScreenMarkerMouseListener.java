@@ -56,28 +56,32 @@ class ScreenMarkerMouseListener extends MouseAdapter {
 
 		if (SwingUtilities.isLeftMouseButton(event)) {
 			if (plugin.isCreatingScreenMarker()) {
-				// If creation is active and start location isn't set, this is the first click
-				if (plugin.getStartLocation() == null) {
-					plugin.initializeMarkerCreation(event.getPoint(), ScreenMarkerGroupsPlugin.DEFAULT_SIZE);
-					// Do not consume here, allow drag to start
+				final Rectangle bounds = plugin.getSelectedWidgetBounds();
+
+				// Check if clicking a highlighted widget while in creation mode
+				if (bounds != null) {
+					// Prepare the marker using widget bounds
+					plugin.startCreation(bounds.getLocation(), bounds.getSize());
+					// Immediately complete selection since no dragging is needed
+					plugin.completeSelection();
 				}
-				// Consume the event anyway to prevent other interactions while creating
+				// If not clicking a widget, but creation mode is active,
+				// this is the start of a drag operation.
+				else if (plugin.getStartLocation() == null) {
+					// Prepare the marker using the click point
+					plugin.startCreation(event.getPoint(), ScreenMarkerGroupsPlugin.DEFAULT_SIZE);
+					// Don't call completeSelection yet, wait for mouseRelease
+				}
+
+				// Consume the event to prevent other interactions
 				event.consume();
 				return event;
-			} else {
-				// If not currently creating, check for widget selection
-				final Rectangle bounds = plugin.getSelectedWidgetBounds();
-				if (bounds != null) {
-					// Start creation based on widget bounds (defaults to Unassigned)
-					plugin.startCreation(bounds.getLocation(), bounds.getSize(),
-							ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP);
-					event.consume(); // Consume event as we started creation
-				}
-				// If not creating and not clicking a widget, let the event pass through
 			}
+			// If not in creation mode, let the event pass through (no widget click handling
+			// here)
 		} else if (plugin.isCreatingScreenMarker()) {
 			// Right-click cancels creation if already in progress
-			plugin.finishCreation(true);
+			plugin.finishCreation(true); // Abort creation
 			event.consume();
 		}
 		return event;
@@ -108,7 +112,8 @@ class ScreenMarkerMouseListener extends MouseAdapter {
 		if (SwingUtilities.isLeftMouseButton(event)) {
 			// Initialize marker creation on first drag if not already done by mousePressed
 			if (plugin.getStartLocation() == null) {
-				plugin.initializeMarkerCreation(event.getPoint(), ScreenMarkerGroupsPlugin.DEFAULT_SIZE);
+				// Call the renamed method
+				plugin.startCreation(event.getPoint(), ScreenMarkerGroupsPlugin.DEFAULT_SIZE);
 			}
 			plugin.resizeMarker(event.getPoint());
 			event.consume();

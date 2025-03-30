@@ -302,10 +302,8 @@ class GroupHeaderPanel extends JPanel {
 			@Override
 			public void mousePressed(MouseEvent e) {
 				if (SwingUtilities.isLeftMouseButton(e)) {
-					plugin.startCreation(null, null, groupName);
-					if (plugin.getPluginPanel() != null) {
-						plugin.getPluginPanel().setCreation(true);
-					}
+					// Call the new method to enter creation mode targeting this group
+					plugin.enterCreationMode(groupName);
 				}
 			}
 
