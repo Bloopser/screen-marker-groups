@@ -42,4 +42,5 @@ public class ScreenMarker {
 	private Color fill;
 	private boolean visible;
 	private boolean labelled;
+	private Long importedId; // ID of the marker in the original plugin it was imported from
 }

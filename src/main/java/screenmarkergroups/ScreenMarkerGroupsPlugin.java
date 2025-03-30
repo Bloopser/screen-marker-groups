@@ -264,7 +264,8 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				ScreenMarkerGroupsPluginPanel.SELECTED_COLOR,
 				ScreenMarkerGroupsPluginPanel.SELECTED_FILL_COLOR,
 				true,
-				false);
+				false,
+				null); // Pass null for importedId
 		startLocation = location;
 		overlay.setPreferredLocation(location);
 		overlay.setPreferredSize(size != null ? size : DEFAULT_SIZE);
@@ -891,6 +892,18 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				continue;
 			}
 
+			// Check if this marker (by original ID) has already been imported
+			final long originalMarkerId = markerData.getId(); // Use final for lambda
+			boolean alreadyImported = importedGroupList.stream()
+					.map(ScreenMarkerOverlay::getMarker)
+					.filter(m -> m.getImportedId() != null) // Check markers that have an importedId
+					.anyMatch(existingMarker -> originalMarkerId == existingMarker.getImportedId()); // Use primitive
+																										// comparison
+
+			if (alreadyImported) {
+				continue; // Skip this marker if it's already in the "Imported" group
+			}
+
 			// Apply defaults for potentially missing fields from older plugin versions
 			if (markerData.getColor() == null) {
 				markerData.setColor(ScreenMarkerGroupsPluginPanel.DEFAULT_BORDER_COLOR);
@@ -914,17 +927,21 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 					markerData.getColor(),
 					markerData.getFill(),
 					markerData.isVisible(), // Keep original visibility
-					markerData.isLabelled());
+					markerData.isLabelled(),
+					null); // Pass null for importedId initially
+			newMarker.setImportedId(originalMarkerId); // Store the original ID
 
 			// Create the overlay for the new marker
 			ScreenMarkerOverlay newOverlay = new ScreenMarkerOverlay(newMarker, this);
 
 			// Try to read original position and size using original ID
-			long originalId = markerData.getId();
+			// final long originalId = markerData.getId(); // Already defined above
 			Point originalLocation = parsePoint(
-					configManager.getConfiguration(OVERLAY_CONFIG_GROUP, "marker" + originalId + "_preferredLocation"));
+					configManager.getConfiguration(OVERLAY_CONFIG_GROUP,
+							"marker" + originalMarkerId + "_preferredLocation"));
 			Dimension originalSize = parseDimension(
-					configManager.getConfiguration(OVERLAY_CONFIG_GROUP, "marker" + originalId + "_preferredSize"));
+					configManager.getConfiguration(OVERLAY_CONFIG_GROUP,
+							"marker" + originalMarkerId + "_preferredSize"));
 
 			// Set location/size on the overlay object
 			if (originalLocation != null) {
