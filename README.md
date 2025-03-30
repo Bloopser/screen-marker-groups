@@ -17,7 +17,9 @@ This is useful for setting up markers for specific tasks, bosses, or activities,
 *   **Configure Group (Rename, Delete, Reorder):** Click the **gear icon** (![configure](src/main/resources/screenmarkergroups/configure.png)) on the group's header to open a menu with options to "Rename Group", "Delete Group", "Move Up", or "Move Down".
     *   *Rename:* Changes the group's name (cannot rename "Unassigned" or "Imported").
     *   *Delete:* Removes the group. You'll be asked if you want to delete its markers or move them to "Unassigned". ("Unassigned" cannot be deleted).
+
 ![delete group](<src/main/resources/screenmarkergroups/readme/delete group.png>)
+
     *   *Move Up/Down:* Changes the group's position in the list (special groups stay at the bottom).
 
 ![Group config](<src/main/resources/screenmarkergroups/readme/Group config.png>)
