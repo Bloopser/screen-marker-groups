@@ -31,7 +31,7 @@ import net.runelite.client.config.ConfigItem;
 /**
  * Configuration interface for the Screen Marker Groups plugin.
  */
-@ConfigGroup("screenmarkergroups") // Matches the CONFIG_GROUP constant in the plugin
+@ConfigGroup("screenmarkergroups")
 public interface ScreenMarkerGroupsConfig extends Config {
     /**
      * Stores the screen marker groups and their associated markers as a JSON
@@ -42,16 +42,9 @@ public interface ScreenMarkerGroupsConfig extends Config {
      *
      * @return JSON string representing the marker groups.
      */
-    @ConfigItem(keyName = "markerGroups", // Matches the CONFIG_KEY in the plugin
-            name = "Marker Groups Data", description = "Stores the configuration for screen marker groups and markers (internal).", hidden = true // Hide
-                                                                                                                                                  // from
-                                                                                                                                                  // the
-                                                                                                                                                  // regular
-                                                                                                                                                  // settings
-                                                                                                                                                  // UI
-    )
+    @ConfigItem(keyName = "markerGroups", name = "Marker Groups Data", description = "Stores the configuration for screen marker groups and markers (internal).", hidden = true)
     default String markerGroups() {
-        return "{}"; // Default to an empty JSON object
+        return "{}";
     }
 
     /**
@@ -61,7 +54,7 @@ public interface ScreenMarkerGroupsConfig extends Config {
      */
     @ConfigItem(keyName = "groupOrder", name = "Group Order Data", description = "Stores the display order for screen marker groups (internal).", hidden = true)
     default String groupOrder() {
-        return "[]"; // Default to an empty JSON array
+        return "[]";
     }
 
     /**
@@ -73,6 +66,6 @@ public interface ScreenMarkerGroupsConfig extends Config {
      */
     @ConfigItem(position = 1, keyName = "importTrigger", name = "Import Screen Markers", description = "Click this to import markers from the original Screen Markers plugin into the 'Imported' group.")
     default boolean importTrigger() {
-        return false; // Default value, plugin resets it after triggering
+        return false;
     }
 }

@@ -23,9 +23,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups.ui; // Correct package
+package screenmarkergroups.ui;
 
-import screenmarkergroups.ScreenMarkerGroupsPlugin; // Correct import
+import screenmarkergroups.ScreenMarkerGroupsPlugin;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
@@ -36,14 +36,17 @@ import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
-// Removed ScreenMarkerPlugin import (already added above)
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.components.shadowlabel.JShadowedLabel;
 import net.runelite.client.util.ImageUtil;
 
-public class ScreenMarkerGroupsCreationPanel extends JPanel // Renamed class
-{
+/**
+ * Panel displayed at the bottom of a group's marker list when the user
+ * enters marker creation mode for that specific group. Provides instructions
+ * and confirm/cancel controls.
+ */
+public class ScreenMarkerGroupsCreationPanel extends JPanel {
 	private static final ImageIcon CONFIRM_ICON;
 	private static final ImageIcon CONFIRM_HOVER_ICON;
 	private static final ImageIcon CONFIRM_LOCKED_ICON;
@@ -55,7 +58,6 @@ public class ScreenMarkerGroupsCreationPanel extends JPanel // Renamed class
 	private boolean lockedConfirm = true;
 
 	static {
-		// Updated context class for resource loading
 		CONFIRM_ICON = new ImageIcon(ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "confirm_icon.png"));
 		CANCEL_ICON = new ImageIcon(ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "cancel_icon.png"));
 
@@ -66,8 +68,12 @@ public class ScreenMarkerGroupsCreationPanel extends JPanel // Renamed class
 				ImageUtil.alphaOffset(ImageUtil.bufferedImageFromImage(CANCEL_ICON.getImage()), 0.6f));
 	}
 
-	ScreenMarkerGroupsCreationPanel(ScreenMarkerGroupsPlugin plugin) // Updated constructor signature
-	{
+	/**
+	 * Constructs the creation panel.
+	 *
+	 * @param plugin The main plugin instance.
+	 */
+	ScreenMarkerGroupsCreationPanel(ScreenMarkerGroupsPlugin plugin) {
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		setBorder(new EmptyBorder(8, 8, 8, 8));
 		setLayout(new BorderLayout());
@@ -83,7 +89,6 @@ public class ScreenMarkerGroupsCreationPanel extends JPanel // Renamed class
 		confirmLabel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent mouseEvent) {
-				/* If the confirm button is not locked */
 				if (!lockedConfirm) {
 					plugin.finishCreation(false);
 				}
@@ -126,14 +131,20 @@ public class ScreenMarkerGroupsCreationPanel extends JPanel // Renamed class
 		add(actionsContainer, BorderLayout.EAST);
 	}
 
-	/* Unlocks the confirm button */
+	/**
+	 * Unlocks the confirm button, allowing the user to save the marker.
+	 * Updates the button icon and instruction text.
+	 */
 	public void unlockConfirm() {
 		this.confirmLabel.setIcon(CONFIRM_ICON);
 		this.lockedConfirm = false;
 		instructionsLabel.setText("Confirm or cancel to finish.");
 	}
 
-	/* Locks the confirm button */
+	/**
+	 * Locks the confirm button, preventing saving until a marker area is defined.
+	 * Updates the button icon and instruction text.
+	 */
 	public void lockConfirm() {
 		this.confirmLabel.setIcon(CONFIRM_LOCKED_ICON);
 		this.lockedConfirm = true;

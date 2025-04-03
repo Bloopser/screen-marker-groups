@@ -41,18 +41,17 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.MatteBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
-import net.runelite.client.util.SwingUtil;
+// SwingUtil import removed as unused
 import net.runelite.client.util.ImageUtil;
 import javax.swing.ImageIcon;
 import java.awt.image.BufferedImage;
 
 /**
  * A panel that represents the header for a screen marker group.
- * Displays the group name and includes controls for configuration and adding
- * markers.
+ * Displays the group name and includes controls for visibility, expansion,
+ * configuration, and adding markers.
  */
 class GroupHeaderPanel extends JPanel {
 	private static final ImageIcon ADD_MARKER_ICON;
@@ -70,19 +69,16 @@ class GroupHeaderPanel extends JPanel {
 
 	private final JLabel nameLabel;
 	private final String groupName;
-	private boolean isVisible; // State for group visibility
-	private boolean isExpanded; // State for group expansion
-	private final Consumer<Boolean> onVisibilityChange; // Callback for visibility
-	private final Consumer<Boolean> onExpansionChange; // Callback for expansion
+	private boolean isVisible;
+	private boolean isExpanded;
 	private final ScreenMarkerGroupsPlugin plugin;
-	private final JLabel expansionLabel = new JLabel(); // Label for expand/collapse icon
+	private final JLabel expansionLabel = new JLabel();
 	private final JLabel configureLabel = new JLabel();
-	private final JLabel visibilityLabel = new JLabel(); // New label for visibility
+	private final JLabel visibilityLabel = new JLabel();
 	private final JLabel addMarkerButton = new JLabel();
 	private final JPopupMenu contextMenu;
 
 	static {
-		// Load icons
 		final BufferedImage addIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "add_icon.png");
 		ADD_MARKER_ICON = new ImageIcon(addIcon);
 		ADD_MARKER_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(addIcon, -100));
@@ -113,31 +109,35 @@ class GroupHeaderPanel extends JPanel {
 	}
 
 	/**
-	 * Updates the enabled state of context menu items based on the group type and
-	 * count.
+	 * Updates the enabled state of context menu items (Rename, Delete, Move Up,
+	 * Move Down) based on whether the group is a special group ("Unassigned",
+	 * "Imported") and the total number of groups.
 	 */
 	private void updateContextMenuItems() {
-		// Find menu items
 		JMenuItem renameItem = (JMenuItem) contextMenu.getComponent(0);
 		JMenuItem deleteItem = (JMenuItem) contextMenu.getComponent(1);
-		JMenuItem moveUpItem = (JMenuItem) contextMenu.getComponent(3); // Skip separator
+		JMenuItem moveUpItem = (JMenuItem) contextMenu.getComponent(3);
 		JMenuItem moveDownItem = (JMenuItem) contextMenu.getComponent(4);
 
 		boolean isUnassignedGroup = groupName.equals(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP);
 		boolean isImportedGroup = groupName.equals(ScreenMarkerGroupsPlugin.IMPORTED_GROUP);
-		boolean isSpecialGroupForMove = isUnassignedGroup || isImportedGroup; // Both are special for moving/renaming
+		boolean isSpecialGroup = isUnassignedGroup || isImportedGroup;
 
-		boolean canMove = plugin.getMarkerGroups().size() > 1 && !isSpecialGroupForMove;
+		// Can only move non-special groups, and only if there's more than one group
+		// total (implicitly > 2 if special groups exist)
+		boolean canMove = !isSpecialGroup
+				&& plugin.getMarkerGroups().size() > (isUnassignedGroup ? 1 : 0) + (isImportedGroup ? 1 : 0) + 1;
 
-		renameItem.setEnabled(!isSpecialGroupForMove); // Cannot rename Unassigned or Imported
-		deleteItem.setEnabled(!isUnassignedGroup); // Can delete Imported, but not Unassigned
+		renameItem.setEnabled(!isSpecialGroup);
+		deleteItem.setEnabled(!isUnassignedGroup); // Allow deleting "Imported"
 		moveUpItem.setEnabled(canMove);
 		moveDownItem.setEnabled(canMove);
 	}
 
 	/**
-	 * Sets up the context menu for the group header.
-	 * 
+	 * Creates and configures the right-click context menu for the group header.
+	 * Includes options for renaming, deleting, and reordering the group.
+	 *
 	 * @return The configured JPopupMenu.
 	 */
 	private JPopupMenu setupContextMenu() {
@@ -198,37 +198,31 @@ class GroupHeaderPanel extends JPanel {
 		this.groupName = groupName;
 		this.isVisible = initialVisibility;
 		this.isExpanded = initialExpansion;
-		this.onVisibilityChange = onVisibilityChange;
-		this.onExpansionChange = onExpansionChange;
-
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-		// Create a compound border: padding + bottom line
-		Border padding = new EmptyBorder(4, 5, 4, 5); // Increased top/bottom padding from 2 to 4
+		Border padding = new EmptyBorder(4, 5, 4, 5);
 		Border line = BorderFactory.createMatteBorder(0, 0, 1, 0, ColorScheme.DARK_GRAY_COLOR);
 		setBorder(new CompoundBorder(padding, line));
 
 		nameLabel = new JLabel(groupName);
 		nameLabel.setFont(FontManager.getRunescapeBoldFont());
 		nameLabel.setForeground(Color.WHITE);
-		nameLabel.setBorder(new EmptyBorder(0, 3, 0, 0)); // Add padding between icon and text
+		nameLabel.setBorder(new EmptyBorder(0, 3, 0, 0));
 
-		// Setup context menu first
 		this.contextMenu = setupContextMenu();
 
-		// Setup Expansion button
-		updateExpansionIcon(); // Set initial icon
+		updateExpansionIcon();
 		expansionLabel.setToolTipText(isExpanded ? "Collapse group" : "Expand group");
 		expansionLabel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
 				if (SwingUtilities.isLeftMouseButton(e)) {
-					isExpanded = !isExpanded; // Toggle state
+					isExpanded = !isExpanded;
 					updateExpansionIcon();
 					expansionLabel.setToolTipText(isExpanded ? "Collapse group" : "Expand group");
 					if (onExpansionChange != null) {
-						onExpansionChange.accept(isExpanded); // Notify listener
+						onExpansionChange.accept(isExpanded);
 					}
 				}
 			}
@@ -240,19 +234,17 @@ class GroupHeaderPanel extends JPanel {
 
 			@Override
 			public void mouseExited(MouseEvent e) {
-				updateExpansionIcon(); // Revert to non-hover icon
+				updateExpansionIcon();
 			}
 		});
 
-		// Setup Configure button
 		configureLabel.setIcon(CONFIGURE_ICON);
 		configureLabel.setToolTipText("Configure group");
 		configureLabel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
-				// Only show context menu if the label is enabled
 				if (configureLabel.isEnabled() && SwingUtilities.isLeftMouseButton(e)) {
-					updateContextMenuItems(); // Update states before showing
+					updateContextMenuItems();
 					contextMenu.show(configureLabel, e.getX(), e.getY());
 				}
 			}
@@ -268,18 +260,17 @@ class GroupHeaderPanel extends JPanel {
 			}
 		});
 
-		// Setup Visibility button
-		updateVisibilityIcon(); // Set initial icon based on state
+		updateVisibilityIcon();
 		visibilityLabel.setToolTipText(isVisible ? "Hide group markers" : "Show group markers");
 		visibilityLabel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
 				if (SwingUtilities.isLeftMouseButton(e)) {
-					isVisible = !isVisible; // Toggle state
+					isVisible = !isVisible;
 					updateVisibilityIcon();
 					visibilityLabel.setToolTipText(isVisible ? "Hide group markers" : "Show group markers");
 					if (onVisibilityChange != null) {
-						onVisibilityChange.accept(isVisible); // Notify listener
+						onVisibilityChange.accept(isVisible);
 					}
 				}
 			}
@@ -291,18 +282,16 @@ class GroupHeaderPanel extends JPanel {
 
 			@Override
 			public void mouseExited(MouseEvent e) {
-				updateVisibilityIcon(); // Revert to non-hover icon
+				updateVisibilityIcon();
 			}
 		});
 
-		// Setup Add Marker button
 		addMarkerButton.setIcon(ADD_MARKER_ICON);
 		addMarkerButton.setToolTipText("Add new marker to this group");
 		addMarkerButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
 				if (SwingUtilities.isLeftMouseButton(e)) {
-					// Call the new method to enter creation mode targeting this group
 					plugin.enterCreationMode(groupName);
 				}
 			}
@@ -318,77 +307,70 @@ class GroupHeaderPanel extends JPanel {
 			}
 		});
 
-		// Panel for right-side controls using FlowLayout for easier horizontal
-		// arrangement
-		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 2)); // Right-aligned, 3px horizontal gap
+		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 3, 2));
 		rightActions.setBackground(getBackground());
-		rightActions.setBorder(new EmptyBorder(0, 0, 4, 2)); // Add 2px right padding
+		rightActions.setBorder(new EmptyBorder(0, 0, 4, 2));
 		rightActions.add(configureLabel);
-		rightActions.add(visibilityLabel); // Add visibility button in the middle
+		rightActions.add(visibilityLabel);
 		rightActions.add(addMarkerButton);
 
-		// Panel for left-side elements (expansion icon + name)
 		JPanel leftActions = new JPanel(new BorderLayout());
 		leftActions.setBackground(getBackground());
-		leftActions.setBorder(new EmptyBorder(2, 2, 4, 0)); // Add 2px left padding
+		leftActions.setBorder(new EmptyBorder(2, 2, 4, 0));
 		leftActions.add(expansionLabel, BorderLayout.WEST);
 		leftActions.add(nameLabel, BorderLayout.CENTER);
 
-		// Add components to the main panel
 		add(leftActions, BorderLayout.CENTER);
 		add(rightActions, BorderLayout.EAST);
 	}
 
 	/**
-	 * Enables or disables the configuration controls for this group header.
-	 * 
-	 * @param enabled True to enable, false to disable.
+	 * Enables or disables the interactive controls (expansion, configure,
+	 * visibility, add) on the header panel. Updates icons to appear dimmed when
+	 * disabled.
+	 *
+	 * @param enabled True to enable controls, false to disable.
 	 */
 	void setControlsEnabled(boolean enabled) {
-		expansionLabel.setEnabled(enabled); // Enable/disable expansion toggle
+		expansionLabel.setEnabled(enabled);
 		configureLabel.setEnabled(enabled);
-		visibilityLabel.setEnabled(enabled); // Also enable/disable visibility toggle
-		addMarkerButton.setEnabled(enabled); // Assuming add should also be disabled
+		visibilityLabel.setEnabled(enabled);
+		addMarkerButton.setEnabled(enabled);
 
-		// Update icons and tooltips based on enabled state
 		if (enabled) {
-			updateExpansionIcon(); // Set correct expanded/collapsed icon
+			updateExpansionIcon();
 			expansionLabel.setToolTipText(isExpanded ? "Collapse group" : "Expand group");
+			configureLabel.setIcon(CONFIGURE_ICON);
+			configureLabel.setToolTipText("Configure group");
+			updateVisibilityIcon();
+			visibilityLabel.setToolTipText(isVisible ? "Hide group markers" : "Show group markers");
+			addMarkerButton.setIcon(ADD_MARKER_ICON);
+			addMarkerButton.setToolTipText("Add new marker to this group");
 		} else {
-			// Use a dimmed version of the current icon when disabled
 			expansionLabel.setIcon(isExpanded ? new ImageIcon(ImageUtil.alphaOffset(EXPANDED_ICON.getImage(), 0.5f))
 					: new ImageIcon(ImageUtil.alphaOffset(COLLAPSED_ICON.getImage(), 0.5f)));
 			expansionLabel.setToolTipText(null);
-		}
-
-		configureLabel.setIcon(
-				enabled ? CONFIGURE_ICON : new ImageIcon(ImageUtil.alphaOffset(CONFIGURE_ICON.getImage(), 0.5f)));
-		configureLabel.setToolTipText(enabled ? "Configure group" : null);
-
-		if (enabled) {
-			updateVisibilityIcon(); // Set correct visible/invisible icon
-			visibilityLabel.setToolTipText(isVisible ? "Hide group markers" : "Show group markers");
-		} else {
-			// Use a dimmed version of the current icon when disabled
+			configureLabel.setIcon(new ImageIcon(ImageUtil.alphaOffset(CONFIGURE_ICON.getImage(), 0.5f)));
+			configureLabel.setToolTipText(null);
 			visibilityLabel.setIcon(isVisible ? new ImageIcon(ImageUtil.alphaOffset(VISIBLE_ICON.getImage(), 0.5f))
 					: new ImageIcon(ImageUtil.alphaOffset(INVISIBLE_ICON.getImage(), 0.5f)));
 			visibilityLabel.setToolTipText(null);
+			addMarkerButton.setIcon(new ImageIcon(ImageUtil.alphaOffset(ADD_MARKER_ICON.getImage(), 0.5f)));
+			addMarkerButton.setToolTipText(null);
 		}
-
-		addMarkerButton.setIcon(
-				enabled ? ADD_MARKER_ICON : new ImageIcon(ImageUtil.alphaOffset(ADD_MARKER_ICON.getImage(), 0.5f)));
-		addMarkerButton.setToolTipText(enabled ? "Add new marker to this group" : null);
 	}
 
 	/**
-	 * Updates the visibility icon based on the current isVisible state.
+	 * Updates the visibility icon (eye open/closed) based on the current
+	 * `isVisible` state.
 	 */
 	private void updateVisibilityIcon() {
 		visibilityLabel.setIcon(isVisible ? VISIBLE_ICON : INVISIBLE_ICON);
 	}
 
 	/**
-	 * Updates the expansion icon based on the current isExpanded state.
+	 * Updates the expansion icon (arrow down/right) based on the current
+	 * `isExpanded` state.
 	 */
 	private void updateExpansionIcon() {
 		expansionLabel.setIcon(isExpanded ? EXPANDED_ICON : COLLAPSED_ICON);

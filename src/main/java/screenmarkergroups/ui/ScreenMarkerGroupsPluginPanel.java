@@ -34,13 +34,9 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.util.HashMap;
-import java.util.List;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,19 +52,19 @@ import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.PluginErrorPanel;
 import net.runelite.client.util.ImageUtil;
 
+/**
+ * The main plugin panel for the Screen Marker Groups plugin.
+ * Displays groups and their markers, providing controls for adding groups
+ * and managing the overall view.
+ */
 public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 	@Getter
 	private final Map<String, ScreenMarkerGroupsCreationPanel> creationPanelsMap = new HashMap<>();
 
 	private static final ImageIcon ADD_GROUP_ICON;
 	private static final ImageIcon ADD_GROUP_HOVER_ICON;
-	private static final ImageIcon ADD_MARKER_ICON;
-	private static final ImageIcon ADD_MARKER_HOVER_ICON;
-
-	// Public for access during import defaults
 	public static final Color DEFAULT_BORDER_COLOR = Color.GREEN;
 	public static final Color DEFAULT_FILL_COLOR = new Color(0, 255, 0, 0);
-
 	public static final int DEFAULT_BORDER_THICKNESS = 3;
 
 	public static final Color SELECTED_COLOR = DEFAULT_BORDER_COLOR;
@@ -76,7 +72,6 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 	public static final int SELECTED_BORDER_THICKNESS = DEFAULT_BORDER_THICKNESS;
 
 	private final JLabel addGroupButton = new JLabel(ADD_GROUP_ICON);
-	private final JLabel addMarker = new JLabel(ADD_MARKER_ICON);
 	private final JLabel title = new JLabel();
 	private final PluginErrorPanel noMarkersPanel = new PluginErrorPanel();
 	private final JPanel markerView = new JPanel(new GridBagLayout());
@@ -85,13 +80,16 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 
 	static {
 		final BufferedImage addIcon = ImageUtil.loadImageResource(ScreenMarkerGroupsPlugin.class, "add_icon.png");
-		ADD_MARKER_ICON = new ImageIcon(addIcon);
-		ADD_MARKER_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(addIcon, 0.53f));
 
 		ADD_GROUP_ICON = new ImageIcon(addIcon);
 		ADD_GROUP_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(addIcon, 0.53f));
 	}
 
+	/**
+	 * Constructs the main plugin panel.
+	 *
+	 * @param screenMarkerPlugin The main plugin instance.
+	 */
 	public ScreenMarkerGroupsPluginPanel(ScreenMarkerGroupsPlugin screenMarkerPlugin) {
 		this.plugin = screenMarkerPlugin;
 
@@ -156,36 +154,23 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 		markerView.add(noMarkersPanel, constraints);
 		constraints.gridy++;
 
-		addMarker.setToolTipText("Add new screen marker (to Unassigned)");
-		addMarker.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mousePressed(MouseEvent mouseEvent) {
-				// Call the new method to enter creation mode for the "Unassigned" group
-				plugin.enterCreationMode(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP);
-			}
-
-			@Override
-			public void mouseEntered(MouseEvent mouseEvent) {
-				addMarker.setIcon(ADD_MARKER_HOVER_ICON);
-			}
-
-			@Override
-			public void mouseExited(MouseEvent mouseEvent) {
-				addMarker.setIcon(ADD_MARKER_ICON);
-			}
-		});
-
 		centerPanel.add(markerView, BorderLayout.CENTER);
 
 		add(northPanel, BorderLayout.NORTH);
 		add(centerPanel, BorderLayout.CENTER);
 	}
 
+	/**
+	 * Rebuilds the entire panel display based on the current groups and markers
+	 * stored in the plugin. Clears the existing view and reconstructs it with
+	 * group headers and marker panels according to their order, visibility, and
+	 * expansion state.
+	 */
 	public void rebuild() {
 		GridBagConstraints constraints = new GridBagConstraints();
 		constraints.fill = GridBagConstraints.HORIZONTAL;
 		constraints.weightx = 1;
-		constraints.weighty = 0; // Default weighty to 0 for components
+		constraints.weighty = 0;
 		constraints.gridx = 0;
 		constraints.gridy = 0;
 
@@ -200,24 +185,23 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 				continue;
 			}
 
+			// Don't show the 'Unassigned' group header if it's empty
 			if (markersInGroup.isEmpty() && groupName.equals(ScreenMarkerGroupsPlugin.UNASSIGNED_GROUP)) {
 				continue;
 			}
 
-			// Get initial visibility and expansion states from the plugin
 			boolean initialVisibility = plugin.isGroupVisible(groupName);
-			boolean initialExpansion = plugin.isGroupExpanded(groupName); // Needs implementation in plugin
+			boolean initialExpansion = plugin.isGroupExpanded(groupName);
 
-			// Create the header panel, passing both states and callbacks
 			GroupHeaderPanel headerPanel = new GroupHeaderPanel(
 					plugin,
 					groupName,
 					initialVisibility,
 					initialExpansion,
-					(isVisible) -> plugin.setGroupVisibility(groupName, isVisible), // Visibility callback
-					(isExpanded) -> { // Expansion callback
-						plugin.setGroupExpansion(groupName, isExpanded); // Needs implementation in plugin
-						rebuild(); // Rebuild panel to show/hide markers
+					(isVisible) -> plugin.setGroupVisibility(groupName, isVisible),
+					(isExpanded) -> {
+						plugin.setGroupExpansion(groupName, isExpanded);
+						rebuild();
 					});
 			markerView.add(headerPanel, constraints);
 			constraints.gridy++;
@@ -228,43 +212,33 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 			markerView.add(currentCreationPanel, constraints);
 			constraints.gridy++;
 
-			// Only add marker panels if the group is expanded
 			if (initialExpansion) {
-				// Iterate with index to check if it's the last marker
 				for (int i = 0; i < markersInGroup.size(); i++) {
 					final ScreenMarkerOverlay marker = markersInGroup.get(i);
 					markerView.add(new ScreenMarkerGroupsPanel(plugin, marker), constraints);
 					constraints.gridy++;
-					markerCount++; // Only count markers if group is expanded? Or always? Let's count always for
-									// now.
+					markerCount++;
 
-					// Add 5px spacer only if it's NOT the last marker in the group
 					if (i < markersInGroup.size() - 1) {
 						markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
 						constraints.gridy++;
 					}
 				}
 
-				// Add spacer after the last marker only if the group is expanded and has
-				// markers
 				if (!markersInGroup.isEmpty()) {
 					markerView.add(Box.createRigidArea(new Dimension(0, 5)), constraints);
 					constraints.gridy++;
 				}
 			} else {
-				// If collapsed, still increment marker count if we want total count regardless
-				// of expansion
 				markerCount += markersInGroup.size();
 			}
 		}
 
-		// Add vertical glue to push everything to the top
 		constraints.weighty = 1;
 		markerView.add(Box.createVerticalGlue(), constraints);
 		constraints.gridy++;
-		constraints.weighty = 0; // Reset weighty for the next component
+		constraints.weighty = 0;
 
-		// Add the 'no markers' panel if needed
 		boolean empty = markerCount == 0;
 		noMarkersPanel.setVisible(empty);
 		markerView.add(noMarkersPanel, constraints);
@@ -274,6 +248,12 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 		revalidate();
 	}
 
+	/**
+	 * Sets the panel state for marker creation mode. Hides/shows the appropriate
+	 * creation panel for the target group and disables controls on other panels.
+	 *
+	 * @param on True to enter creation mode, false to exit.
+	 */
 	public void setCreation(boolean on) {
 		creationPanelsMap.values().forEach(panel -> panel.setVisible(false));
 
@@ -295,7 +275,6 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 
 		addGroupButton.setVisible(!on);
 
-		// Enable/disable controls on existing marker and group panels
 		for (Component comp : markerView.getComponents()) {
 			if (comp instanceof ScreenMarkerGroupsPanel) {
 				((ScreenMarkerGroupsPanel) comp).setControlsEnabled(!on);
@@ -303,9 +282,5 @@ public class ScreenMarkerGroupsPluginPanel extends PluginPanel {
 				((GroupHeaderPanel) comp).setControlsEnabled(!on);
 			}
 		}
-	}
-
-	public Map<String, ScreenMarkerGroupsCreationPanel> getCreationPanelsMap() {
-		return creationPanelsMap;
 	}
 }

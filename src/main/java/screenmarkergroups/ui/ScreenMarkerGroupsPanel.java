@@ -24,10 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups.ui; // Correct package
+package screenmarkergroups.ui;
 
-import screenmarkergroups.ScreenMarkerOverlay; // Correct import
-import screenmarkergroups.ScreenMarkerGroupsPlugin; // Correct import
+import screenmarkergroups.ScreenMarkerOverlay;
+import screenmarkergroups.ScreenMarkerGroupsPlugin;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -62,6 +62,11 @@ import net.runelite.client.ui.components.colorpicker.RuneliteColorPicker;
 import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.ImageUtil;
 
+/**
+ * Represents a panel within the main plugin sidebar, displaying controls
+ * for a single ScreenMarkerOverlay. Allows editing name, colors, thickness,
+ * visibility, label display, and deletion.
+ */
 class ScreenMarkerGroupsPanel extends JPanel {
 	private static final int DEFAULT_FILL_OPACITY = 75;
 
@@ -163,6 +168,12 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		DELETE_HOVER_ICON = new ImageIcon(ImageUtil.alphaOffset(deleteImg, -100));
 	}
 
+	/**
+	 * Constructs the panel for a specific screen marker.
+	 *
+	 * @param plugin The main plugin instance.
+	 * @param marker The screen marker overlay this panel represents.
+	 */
 	ScreenMarkerGroupsPanel(ScreenMarkerGroupsPlugin plugin, ScreenMarkerOverlay marker) {
 		this.plugin = plugin;
 		this.marker = marker;
@@ -353,7 +364,6 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 8));
 		rightActions.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-		// Setup context menu first, so the configure button can use it
 		this.contextMenu = setupContextMenu();
 
 		configureLabel.setIcon(CONFIGURE_ICON);
@@ -361,7 +371,6 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		configureLabel.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent mouseEvent) {
-				// Only show context menu if the label is enabled
 				if (configureLabel.isEnabled() && SwingUtilities.isLeftMouseButton(mouseEvent)) {
 					contextMenu.show(configureLabel, mouseEvent.getX(), mouseEvent.getY());
 				}
@@ -424,7 +433,7 @@ class ScreenMarkerGroupsPanel extends JPanel {
 			}
 		});
 
-		rightActions.add(configureLabel); // Add configure button before visibility
+		rightActions.add(configureLabel);
 		rightActions.add(visibilityLabel);
 		rightActions.add(deleteLabel);
 
@@ -434,15 +443,18 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		add(nameWrapper, BorderLayout.NORTH);
 		add(bottomContainer, BorderLayout.CENTER);
 
-		// Context menu is set up earlier now
-		// setupContextMenu(); // Removed this call
-
 		updateVisibility();
 		updateFill();
 		updateBorder();
 		updateLabelling();
 	}
 
+	/**
+	 * Temporarily shows the marker overlay if it's currently hidden.
+	 * Used for previewing during hover events.
+	 *
+	 * @param on True to show, false to revert to original visibility.
+	 */
 	private void preview(boolean on) {
 		if (visible) {
 			return;
@@ -450,6 +462,12 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		marker.getMarker().setVisible(on);
 	}
 
+	/**
+	 * Toggles the persistent visibility state of the marker.
+	 * Updates the marker data, saves configuration, and updates the UI icon.
+	 *
+	 * @param on True to make visible, false to hide.
+	 */
 	private void toggle(boolean on) {
 		visible = on;
 		marker.getMarker().setVisible(visible);
@@ -457,6 +475,12 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		updateVisibility();
 	}
 
+	/**
+	 * Toggles the label display state for the marker.
+	 * Updates the marker data, saves configuration, and updates the UI icon.
+	 *
+	 * @param on True to show the label, false to hide.
+	 */
 	private void toggleLabelling(boolean on) {
 		showLabel = on;
 		marker.getMarker().setLabelled(showLabel);
@@ -464,6 +488,10 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		updateLabelling();
 	}
 
+	/**
+	 * Saves the currently entered name in the name input field to the marker data,
+	 * updates configuration, and reverts the name field to a non-editable state.
+	 */
 	private void save() {
 		marker.getMarker().setName(nameInput.getText());
 		plugin.updateGroupsConfig();
@@ -472,6 +500,10 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		requestFocusInWindow();
 	}
 
+	/**
+	 * Cancels the renaming process, reverting the name input field to the marker's
+	 * current name and making it non-editable.
+	 */
 	private void cancel() {
 		nameInput.setEditable(false);
 		nameInput.setText(marker.getMarker().getName());
@@ -479,6 +511,13 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		requestFocusInWindow();
 	}
 
+	/**
+	 * Updates the visibility of the save/cancel/rename actions based on whether
+	 * the name field is currently being edited.
+	 *
+	 * @param saveAndCancel True if the name is being edited (show save/cancel),
+	 *                      false otherwise (show rename).
+	 */
 	private void updateNameActions(boolean saveAndCancel) {
 		save.setVisible(saveAndCancel);
 		cancel.setVisible(saveAndCancel);
@@ -489,7 +528,12 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		}
 	}
 
-	/* Updates the thickness without saving on config */
+	/**
+	 * Updates the marker's border thickness based on the spinner value.
+	 *
+	 * @param save True to save the configuration change immediately, false
+	 *             otherwise.
+	 */
 	private void updateThickness(boolean save) {
 		marker.getMarker().setBorderThickness((Integer) thicknessSpinner.getValue());
 		updateBorder();
@@ -498,16 +542,28 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		}
 	}
 
+	/**
+	 * Updates the visibility indicator icon and tooltip based on the current
+	 * visibility state.
+	 */
 	private void updateVisibility() {
 		visibilityLabel.setIcon(visible ? VISIBLE_ICON : INVISIBLE_ICON);
 		visibilityLabel.setToolTipText(visible ? "Hide screen marker" : "Show screen marker");
 	}
 
+	/**
+	 * Updates the label indicator icon and tooltip based on the current label
+	 * display state.
+	 */
 	private void updateLabelling() {
 		labelIndicator.setIcon(showLabel ? LABEL_ICON : NO_LABEL_ICON);
 		labelIndicator.setToolTipText(showLabel ? "Hide label" : "Show label");
 	}
 
+	/**
+	 * Updates the fill color indicator icon and border based on the marker's fill
+	 * color and alpha.
+	 */
 	private void updateFill() {
 		final boolean isFullyTransparent = marker.getMarker().getFill().getAlpha() == 0;
 		if (isFullyTransparent) {
@@ -520,6 +576,10 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		fillColorIndicator.setIcon(isFullyTransparent ? NO_FILL_COLOR_ICON : FILL_COLOR_ICON);
 	}
 
+	/**
+	 * Updates the border color indicator icon and border based on the marker's
+	 * border color and thickness.
+	 */
 	private void updateBorder() {
 		if (marker.getMarker().getBorderThickness() == 0) {
 			borderColorIndicator.setBorder(null);
@@ -531,6 +591,11 @@ class ScreenMarkerGroupsPanel extends JPanel {
 				.setIcon(marker.getMarker().getBorderThickness() == 0 ? NO_BORDER_COLOR_ICON : BORDER_COLOR_ICON);
 	}
 
+	/**
+	 * Opens the color picker for editing the marker's fill color.
+	 * Updates the marker data and UI indicator upon color change.
+	 * Saves configuration when the color picker is closed.
+	 */
 	private void openFillColorPicker() {
 		final Color fillColor = marker.getMarker().getFill();
 		RuneliteColorPicker colorPicker = plugin.getColorPickerManager().create(
@@ -547,6 +612,11 @@ class ScreenMarkerGroupsPanel extends JPanel {
 		colorPicker.setVisible(true);
 	}
 
+	/**
+	 * Opens the color picker for editing the marker's border color.
+	 * Updates the marker data and UI indicator upon color change.
+	 * Saves configuration when the color picker is closed.
+	 */
 	private void openBorderColorPicker() {
 		RuneliteColorPicker colorPicker = plugin.getColorPickerManager().create(
 				this,
@@ -563,24 +633,22 @@ class ScreenMarkerGroupsPanel extends JPanel {
 	}
 
 	/**
-	 * Sets up the context menu for the marker panel.
-	 * 
+	 * Sets up the context menu for the marker panel. Includes options for moving
+	 * the marker within or between groups.
+	 *
 	 * @return The configured JPopupMenu.
 	 */
 	private JPopupMenu setupContextMenu() {
 		final JPopupMenu popupMenu = new JPopupMenu();
 
-		// --- Move Up ---
 		final JMenuItem moveUpItem = new JMenuItem("Move Up");
 		moveUpItem.addActionListener(e -> plugin.moveMarkerUp(marker));
 		popupMenu.add(moveUpItem);
 
-		// --- Move Down ---
 		final JMenuItem moveDownItem = new JMenuItem("Move Down");
 		moveDownItem.addActionListener(e -> plugin.moveMarkerDown(marker));
 		popupMenu.add(moveDownItem);
 
-		// --- Move to Group ---
 		final JMenu moveToGroupMenu = new JMenu("Move to Group");
 		popupMenu.add(moveToGroupMenu);
 
@@ -589,12 +657,11 @@ class ScreenMarkerGroupsPanel extends JPanel {
 			@Override
 			public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
 				moveToGroupMenu.removeAll();
-				String currentGroupName = plugin.findGroupForMarker(marker); // Need this method in plugin
+				String currentGroupName = plugin.findGroupForMarker(marker);
 
-				// Get sorted list of group names (excluding current group)
 				List<String> otherGroupNames = plugin.getGroupOrderList().stream()
 						.filter(name -> !name.equals(currentGroupName))
-						.collect(Collectors.toList()); // Already sorted by plugin's list
+						.collect(Collectors.toList());
 
 				if (otherGroupNames.isEmpty()) {
 					JMenuItem noOtherGroups = new JMenuItem("No other groups");
@@ -619,29 +686,25 @@ class ScreenMarkerGroupsPanel extends JPanel {
 			}
 		});
 
-		// Removed the right-click listener from the main panel
-
 		return popupMenu;
 	}
 
 	/**
 	 * Enables or disables the configuration controls for this marker panel.
-	 * 
-	 * @param enabled True to enable, false to disable.
+	 * Used when entering/exiting marker creation mode for a group.
+	 *
+	 * @param enabled True to enable controls, false to disable.
 	 */
 	void setControlsEnabled(boolean enabled) {
 		configureLabel.setEnabled(enabled);
-		// Optionally, change icon to a disabled version if available/needed
 		configureLabel.setToolTipText(enabled ? "Configure marker" : null);
 
-		// Also disable other controls that shouldn't be used during creation mode
 		borderColorIndicator.setEnabled(enabled);
 		fillColorIndicator.setEnabled(enabled);
 		labelIndicator.setEnabled(enabled);
 		thicknessSpinner.setEnabled(enabled);
 		visibilityLabel.setEnabled(enabled);
 		deleteLabel.setEnabled(enabled);
-		rename.setEnabled(enabled); // Disable rename link as well
-		// Keep nameInput editable state as is, managed by rename/save/cancel logic
+		rename.setEnabled(enabled);
 	}
 }

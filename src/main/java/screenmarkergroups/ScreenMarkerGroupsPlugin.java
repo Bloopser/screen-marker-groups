@@ -60,7 +60,6 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.components.colorpicker.ColorPickerManager;
-import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 import screenmarkergroups.ui.ScreenMarkerGroupsPluginPanel;
@@ -69,8 +68,14 @@ import screenmarkergroups.ui.ScreenMarkerGroupsCreationPanel;
 @PluginDescriptor(name = "Screen Marker Groups", description = "Enable drawing of screen markers on top of the client, organized into groups", tags = {
 		"boxes", "overlay", "panel", "group", "organize" })
 public class ScreenMarkerGroupsPlugin extends Plugin {
-	private static final String OVERLAY_CONFIG_GROUP = "runelite"; // Config group for overlay properties
+	private static final String OVERLAY_CONFIG_GROUP = "runelite";
 
+	/**
+	 * Provides the configuration object for the plugin.
+	 *
+	 * @param configManager The RuneLite configuration manager.
+	 * @return The configuration object.
+	 */
 	@Provides
 	ScreenMarkerGroupsConfig provideConfig(ConfigManager configManager) {
 		return configManager.getConfig(ScreenMarkerGroupsConfig.class);
@@ -81,7 +86,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	private static final String CONFIG_KEY_MARKERS = "markerGroups";
 	private static final String CONFIG_KEY_ORDER = "groupOrder";
 	private static final String CONFIG_KEY_VISIBILITY = "groupVisibility";
-	private static final String CONFIG_KEY_EXPANSION = "groupExpansion"; // New config key for expansion
+	private static final String CONFIG_KEY_EXPANSION = "groupExpansion";
 	private static final String ICON_FILE = "panel_icon.png";
 	private static final String DEFAULT_MARKER_NAME = "Marker";
 	public static final Dimension DEFAULT_SIZE = new Dimension(2, 2);
@@ -94,16 +99,11 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	@Getter
 	private final List<String> groupOrderList = new ArrayList<>();
 
-	// Map to store visibility state for each group
 	private final Map<String, Boolean> groupVisibilityStates = new ConcurrentHashMap<>();
-	// Map to store expansion state for each group
 	private final Map<String, Boolean> groupExpansionStates = new ConcurrentHashMap<>();
 
 	@Inject
 	private ConfigManager configManager;
-
-	@Inject
-	private ScreenMarkerGroupsConfig config;
 
 	@Inject
 	private MouseManager mouseManager;
@@ -153,12 +153,23 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	@Getter
 	private String targetGroupNameForCreation = null;
 
+	/**
+	 * Called when the plugin is started. Loads configuration, sets up UI,
+	 * adds overlays, and registers listeners.
+	 *
+	 * @throws Exception If an error occurs during startup.
+	 */
 	@Override
 	protected void startUp() throws Exception {
 		overlayManager.add(overlay);
 		overlayManager.add(widgetHighlight);
 		loadGroupsConfig();
-		markerGroups.values().stream().flatMap(List::stream).forEach(overlayManager::add);
+		// Add overlays respecting group visibility from loaded config
+		markerGroups.forEach((groupName, overlays) -> {
+			if (isGroupVisible(groupName)) {
+				overlays.forEach(overlayManager::add);
+			}
+		});
 		pluginPanel = new ScreenMarkerGroupsPluginPanel(this);
 		pluginPanel.rebuild();
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/" + ICON_FILE);
@@ -172,6 +183,12 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		mouseListener = new ScreenMarkerMouseListener(this);
 	}
 
+	/**
+	 * Called when the plugin is shut down. Removes overlays, clears state,
+	 * removes UI components, and unregisters listeners.
+	 *
+	 * @throws Exception If an error occurs during shutdown.
+	 */
 	@Override
 	protected void shutDown() throws Exception {
 		overlayManager.remove(overlay);
@@ -180,7 +197,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		markerGroups.clear();
 		groupOrderList.clear();
 		groupVisibilityStates.clear();
-		groupExpansionStates.clear(); // Clear expansion state
+		groupExpansionStates.clear();
 		clientToolbar.removeNavigation(navigationButton);
 		setMouseListenerEnabled(false);
 		creatingScreenMarker = false;
@@ -192,13 +209,20 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		selectedWidgetBounds = null;
 	}
 
+	/**
+	 * Handles the RuneLite ProfileChanged event. Clears current state and reloads
+	 * configuration for the new profile. Ensures overlays and UI reflect the
+	 * profile's settings.
+	 *
+	 * @param profileChanged The event object associated with the profile change.
+	 */
 	@Subscribe
 	public void onProfileChanged(ProfileChanged profileChanged) {
 		overlayManager.removeIf(ScreenMarkerOverlay.class::isInstance);
 		markerGroups.clear();
 		groupOrderList.clear();
 		groupVisibilityStates.clear();
-		groupExpansionStates.clear(); // Clear expansion state
+		groupExpansionStates.clear();
 		loadGroupsConfig();
 		// Re-add overlays respecting group visibility
 		markerGroups.forEach((groupName, overlays) -> {
@@ -211,6 +235,12 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Registers or unregisters the mouse listener responsible for handling
+	 * screen marker creation clicks and drags.
+	 *
+	 * @param enabled True to register the listener, false to unregister.
+	 */
 	public void setMouseListenerEnabled(boolean enabled) {
 		if (enabled) {
 			mouseManager.registerMouseListener(mouseListener);
@@ -229,16 +259,14 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		this.targetGroupNameForCreation = markerGroups.containsKey(groupName) ? groupName : UNASSIGNED_GROUP;
 		this.creatingScreenMarker = true;
 		this.setMouseListenerEnabled(true);
-		this.currentMarker = null; // Clear any previous marker being created
-		this.startLocation = null; // Clear start location
-		this.drawingScreenMarker = false; // Not drawing yet
-		this.selectedWidgetBounds = null; // Clear selected widget
+		this.currentMarker = null;
+		this.startLocation = null;
+		this.drawingScreenMarker = false;
+		this.selectedWidgetBounds = null;
 
-		// Reset the creation overlay
 		overlay.setPreferredLocation(null);
 		overlay.setPreferredSize(null);
 
-		// Update the UI panel
 		if (pluginPanel != null) {
 			pluginPanel.setCreation(true);
 		}
@@ -254,41 +282,47 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	 * @param size     The initial size for the marker.
 	 */
 	public void startCreation(Point location, Dimension size) {
-		// Don't create if already created or location is invalid
 		if (currentMarker != null || location == null) {
 			return;
 		}
 
-		// Generate a unique ID (simple increment for now, consider better approach if
-		// needed)
 		long nextMarkerId = findMaxMarkerId() + 1;
 
+		// Determine the target group name, defaulting to UNASSIGNED_GROUP if null
+		String targetGroup = targetGroupNameForCreation != null ? targetGroupNameForCreation : UNASSIGNED_GROUP;
+		// Calculate the next marker number within the target group
+		int nextMarkerNumberInGroup = markerGroups.getOrDefault(targetGroup, Collections.emptyList()).size() + 1;
+
 		currentMarker = new ScreenMarker(
-				nextMarkerId, // Use generated ID
-				DEFAULT_MARKER_NAME + " " + nextMarkerId, // Default name
+				nextMarkerId,
+				DEFAULT_MARKER_NAME + " " + nextMarkerNumberInGroup, // Use group-specific count for default name
 				ScreenMarkerGroupsPluginPanel.SELECTED_BORDER_THICKNESS,
 				ScreenMarkerGroupsPluginPanel.SELECTED_COLOR,
 				ScreenMarkerGroupsPluginPanel.SELECTED_FILL_COLOR,
 				true,
 				false,
-				null); // Pass null for importedId
+				null);
 		startLocation = location;
 		overlay.setPreferredLocation(location);
 		overlay.setPreferredSize(size != null ? size : DEFAULT_SIZE);
 		drawingScreenMarker = true;
 	}
 
+	/**
+	 * Finalizes the screen marker creation process. If not aborted, it creates
+	 * the marker overlay, adds it to the target group, saves the configuration,
+	 * and updates the UI. Resets the creation state regardless of outcome.
+	 *
+	 * @param aborted True if the creation process was cancelled, false otherwise.
+	 */
 	public void finishCreation(boolean aborted) {
 		ScreenMarker marker = currentMarker;
 		String targetGroup = targetGroupNameForCreation != null ? targetGroupNameForCreation : UNASSIGNED_GROUP;
-		// Get bounds from the creation overlay, which is set correctly by startCreation
 		Rectangle overlayBounds = overlay.getBounds();
 
 		if (!aborted && marker != null && overlayBounds != null && overlayBounds.width > 0
 				&& overlayBounds.height > 0) {
-			// Pass plugin instance 'this' to the constructor
 			final ScreenMarkerOverlay screenMarkerOverlay = new ScreenMarkerOverlay(marker, this);
-			// Use the overlay's bounds for location and size
 			screenMarkerOverlay.setPreferredLocation(overlayBounds.getLocation());
 			screenMarkerOverlay.setPreferredSize(overlayBounds.getSize());
 
@@ -296,25 +330,20 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			groupList.add(screenMarkerOverlay);
 
 			if (!groupOrderList.contains(targetGroup)) {
-				int insertIndex = groupOrderList.size();
-				if (groupOrderList.contains(IMPORTED_GROUP)) {
-					insertIndex = groupOrderList.indexOf(IMPORTED_GROUP);
-				}
-				if (groupOrderList.contains(UNASSIGNED_GROUP)) {
-					insertIndex = Math.min(insertIndex, groupOrderList.indexOf(UNASSIGNED_GROUP));
-				}
+				int insertIndex = calculateGroupInsertIndex();
 				if (!targetGroup.equals(UNASSIGNED_GROUP) && !targetGroup.equals(IMPORTED_GROUP)) {
 					groupOrderList.add(insertIndex, targetGroup);
-				} else if (!groupOrderList.contains(targetGroup)) {
-					groupOrderList.add(targetGroup);
+				} else if (!groupOrderList.contains(targetGroup)) { // Add Unassigned/Imported if not present at all
+					groupOrderList.add(targetGroup); // Add to end if somehow missing
 				}
+				// Re-ensure Unassigned/Imported are at the end if they were just added
+				ensureSpecialGroupsOrder();
 			}
 			overlayManager.saveOverlay(screenMarkerOverlay);
-			// Only add overlay if group is visible
 			if (isGroupVisible(targetGroup)) {
 				overlayManager.add(screenMarkerOverlay);
 			}
-			updateGroupsConfig(); // This saves markers, order, visibility, and expansion
+			updateGroupsConfig();
 		} else {
 			aborted = true;
 		}
@@ -335,6 +364,11 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Called when the user confirms the marker creation settings in the UI panel.
+	 * Currently unlocks the confirmation button in the specific group's creation
+	 * panel.
+	 */
 	public void completeSelection() {
 		if (pluginPanel != null && targetGroupNameForCreation != null) {
 			ScreenMarkerGroupsCreationPanel creationPanel = pluginPanel.getCreationPanelsMap()
@@ -345,6 +379,13 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Deletes a specific screen marker overlay from its group, removes it from
+	 * the overlay manager, resets its configuration, saves the changes, and
+	 * updates the UI panel.
+	 *
+	 * @param markerToDelete The overlay instance to delete.
+	 */
 	public void deleteMarker(final ScreenMarkerOverlay markerToDelete) {
 		boolean removed = false;
 		for (List<ScreenMarkerOverlay> groupList : markerGroups.values()) {
@@ -356,14 +397,20 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		if (removed) {
 			overlayManager.remove(markerToDelete);
 			overlayManager.resetOverlay(markerToDelete);
-			updateGroupsConfig(); // This saves markers, order, visibility, and expansion
+			updateGroupsConfig();
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
 
+	/**
+	 * Handles resizing of the marker currently being created based on mouse drag.
+	 * If creation hasn't started, it initiates it. Otherwise, it updates the
+	 * bounds of the creation overlay.
+	 *
+	 * @param point The current mouse cursor position.
+	 */
 	void resizeMarker(Point point) {
 		if (startLocation == null) {
-			// Call the renamed method
 			startCreation(point, DEFAULT_SIZE);
 			return;
 		}
@@ -374,11 +421,14 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		overlay.setPreferredSize(bounds.getSize());
 	}
 
+	/**
+	 * Saves the current state of all marker groups, their order, visibility,
+	 * and expansion states to the RuneLite configuration. Unsets configuration
+	 * keys if the corresponding data structures are empty.
+	 */
 	public void updateGroupsConfig() {
 		boolean shouldSaveMarkers = !markerGroups.isEmpty();
 		boolean shouldSaveOrder = !groupOrderList.isEmpty();
-		boolean shouldSaveVisibility = !groupVisibilityStates.isEmpty();
-		boolean shouldSaveExpansion = !groupExpansionStates.isEmpty();
 
 		if (!shouldSaveMarkers) {
 			configManager.unsetConfiguration(CONFIG_GROUP, CONFIG_KEY_MARKERS);
@@ -394,7 +444,6 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			configManager.setConfiguration(CONFIG_GROUP, CONFIG_KEY_MARKERS, markersJson);
 		}
 
-		// Save group order
 		if (!shouldSaveOrder) {
 			configManager.unsetConfiguration(CONFIG_GROUP, CONFIG_KEY_ORDER);
 		} else {
@@ -410,7 +459,6 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			}
 		}
 
-		// Save visibility and expansion states separately
 		updateVisibilityConfig();
 		updateExpansionConfig();
 	}
@@ -449,7 +497,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		markerGroups.clear();
 		groupOrderList.clear();
 		groupVisibilityStates.clear();
-		groupExpansionStates.clear(); // Clear before loading
+		groupExpansionStates.clear();
 
 		final String markersJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_MARKERS);
 		if (!Strings.isNullOrEmpty(markersJson)) {
@@ -462,20 +510,17 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 					loadedGroups.forEach((groupName, markerList) -> {
 						List<ScreenMarkerOverlay> overlayList = markerList.stream()
 								.filter(Objects::nonNull)
-								// Pass plugin instance 'this' using a lambda
 								.map(marker -> new ScreenMarkerOverlay(marker, this))
 								.collect(Collectors.toList());
 						markerGroups.put(groupName, new ArrayList<>(overlayList));
 					});
 				}
 			} catch (Exception e) {
-				System.err.println("Error parsing marker groups JSON: " + e.getMessage());
 				markerGroups.clear();
 			}
 		}
 		markerGroups.computeIfAbsent(UNASSIGNED_GROUP, k -> new ArrayList<>());
 
-		// Load Group Order
 		final String orderJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_ORDER);
 		List<String> loadedOrder = null;
 		if (!Strings.isNullOrEmpty(orderJson)) {
@@ -483,50 +528,37 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				loadedOrder = gson.fromJson(orderJson, new TypeToken<ArrayList<String>>() {
 				}.getType());
 			} catch (Exception e) {
-				System.err.println("Error parsing group order JSON: " + e.getMessage());
 				loadedOrder = null;
 			}
 		}
 
+		// Add loaded, valid groups to the order list
 		if (loadedOrder != null) {
 			groupOrderList.addAll(loadedOrder.stream()
-					.filter(markerGroups::containsKey)
+					.filter(markerGroups::containsKey) // Only add groups that actually exist
 					.collect(Collectors.toList()));
 		}
 
-		List<String> groupsToAdd = new ArrayList<>();
-		for (String groupName : markerGroups.keySet()) {
-			if (!groupOrderList.contains(groupName)) {
-				groupsToAdd.add(groupName);
-			}
-		}
-		groupsToAdd.sort(String.CASE_INSENSITIVE_ORDER);
+		// Find groups present in data but missing from the loaded order
+		List<String> groupsToAdd = markerGroups.keySet().stream()
+				.filter(groupName -> !groupOrderList.contains(groupName))
+				.filter(groupName -> !groupName.equals(UNASSIGNED_GROUP) && !groupName.equals(IMPORTED_GROUP))
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.collect(Collectors.toList());
 
-		int insertIndex = groupOrderList.size();
-		if (groupOrderList.contains(IMPORTED_GROUP)) {
-			insertIndex = groupOrderList.indexOf(IMPORTED_GROUP);
-		}
-		if (groupOrderList.contains(UNASSIGNED_GROUP)) {
-			insertIndex = Math.min(insertIndex, groupOrderList.indexOf(UNASSIGNED_GROUP));
-		}
-		groupOrderList.addAll(insertIndex, groupsToAdd);
-
-		if (markerGroups.containsKey(UNASSIGNED_GROUP)) {
-			groupOrderList.remove(UNASSIGNED_GROUP);
-			if (groupOrderList.contains(IMPORTED_GROUP)) {
-				groupOrderList.add(groupOrderList.indexOf(IMPORTED_GROUP), UNASSIGNED_GROUP);
-			} else {
-				groupOrderList.add(UNASSIGNED_GROUP);
-			}
-		}
-		if (markerGroups.containsKey(IMPORTED_GROUP)) {
-			groupOrderList.remove(IMPORTED_GROUP);
-			groupOrderList.add(IMPORTED_GROUP);
+		// Add the missing normal groups at the calculated insertion point
+		if (!groupsToAdd.isEmpty()) {
+			int insertIndex = calculateGroupInsertIndex();
+			groupOrderList.addAll(insertIndex, groupsToAdd);
 		}
 
+		// Ensure Unassigned and Imported groups are present and at the end, in the
+		// correct order
+		ensureSpecialGroupsOrder();
+
+		// Clean up any potential stale entries in groupOrderList
 		groupOrderList.retainAll(markerGroups.keySet());
 
-		// Load Group Visibility States
 		final String visibilityJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_VISIBILITY);
 		if (!Strings.isNullOrEmpty(visibilityJson)) {
 			try {
@@ -543,12 +575,10 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 					});
 				}
 			} catch (Exception e) {
-				System.err.println("Error parsing group visibility JSON: " + e.getMessage());
-				groupVisibilityStates.clear(); // Reset on error
+				groupVisibilityStates.clear();
 			}
 		}
 
-		// Load Group Expansion States
 		final String expansionJson = configManager.getConfiguration(CONFIG_GROUP, CONFIG_KEY_EXPANSION);
 		if (!Strings.isNullOrEmpty(expansionJson)) {
 			try {
@@ -565,8 +595,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 					});
 				}
 			} catch (Exception e) {
-				System.err.println("Error parsing group expansion JSON: " + e.getMessage());
-				groupExpansionStates.clear(); // Reset on error
+				groupExpansionStates.clear();
 			}
 		}
 	}
@@ -579,7 +608,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	 * @return True if the group is visible, false otherwise.
 	 */
 	public boolean isGroupVisible(String groupName) {
-		return groupVisibilityStates.getOrDefault(groupName, true); // Default to visible
+		return groupVisibilityStates.getOrDefault(groupName, true);
 	}
 
 	/**
@@ -591,32 +620,24 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	 */
 	public void setGroupVisibility(String groupName, boolean isVisible) {
 		if (!markerGroups.containsKey(groupName)) {
-			return; // Ignore if group doesn't exist
+			return;
 		}
 
 		boolean previousState = isGroupVisible(groupName);
 		groupVisibilityStates.put(groupName, isVisible);
-		updateVisibilityConfig(); // Save the change
+		updateVisibilityConfig();
 
-		// Update overlays if state actually changed
 		if (previousState != isVisible) {
 			List<ScreenMarkerOverlay> groupOverlays = markerGroups.get(groupName);
 			if (groupOverlays != null) {
 				if (isVisible) {
-					// Add overlays back if their individual marker is visible
-					// OverlayManager.add is idempotent, so no need to check if it's already present
 					groupOverlays.stream()
 							.filter(overlay -> overlay.getMarker().isVisible())
 							.forEach(overlayManager::add);
 				} else {
-					// Remove overlays from the manager
 					groupOverlays.forEach(overlayManager::remove);
 				}
 			}
-			// Trigger a repaint or rebuild if necessary, though render method check might
-			// suffice
-			// SwingUtilities.invokeLater(pluginPanel::rebuild); // Might be too heavy, let
-			// render handle it first
 		}
 	}
 
@@ -628,49 +649,56 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	 * @return True if the group is expanded, false otherwise.
 	 */
 	public boolean isGroupExpanded(String groupName) {
-		return groupExpansionStates.getOrDefault(groupName, true); // Default to expanded
+		return groupExpansionStates.getOrDefault(groupName, true);
 	}
 
 	/**
 	 * Sets the expansion state for a specific group and saves the configuration.
-	 * Note: The UI update (showing/hiding markers) is handled by the panel's
-	 * rebuild triggered by the callback.
 	 *
 	 * @param groupName  The name of the group.
 	 * @param isExpanded The desired expansion state.
 	 */
 	public void setGroupExpansion(String groupName, boolean isExpanded) {
 		if (!markerGroups.containsKey(groupName)) {
-			return; // Ignore if group doesn't exist
+			return;
 		}
 		groupExpansionStates.put(groupName, isExpanded);
-		updateExpansionConfig(); // Save the change
-		// No need to directly manipulate overlays here, panel rebuild handles it
+		updateExpansionConfig();
 	}
 
+	/**
+	 * Adds a new, empty group with the given name. The group defaults to visible
+	 * and expanded. Updates configuration and rebuilds the UI panel.
+	 *
+	 * @param name The name for the new group. Must not be null, empty, or already
+	 *             exist.
+	 * @return True if the group was added successfully, false otherwise.
+	 */
 	public boolean addGroup(String name) {
 		if (Strings.isNullOrEmpty(name) || markerGroups.containsKey(name)) {
 			return false;
 		}
 		markerGroups.put(name, new ArrayList<>());
-		groupVisibilityStates.put(name, true); // Default new group to visible
-		groupExpansionStates.put(name, true); // Default new group to expanded
-		int insertIndex = groupOrderList.size();
-		if (groupOrderList.contains(IMPORTED_GROUP)) {
-			insertIndex = groupOrderList.indexOf(IMPORTED_GROUP);
-		}
-		if (groupOrderList.contains(UNASSIGNED_GROUP)) {
-			insertIndex = Math.min(insertIndex, groupOrderList.indexOf(UNASSIGNED_GROUP));
-		}
+		groupVisibilityStates.put(name, true);
+		groupExpansionStates.put(name, true);
+
+		// Add the new group name before Unassigned/Imported
+		int insertIndex = calculateGroupInsertIndex();
 		groupOrderList.add(insertIndex, name);
 
-		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+		updateGroupsConfig();
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 		return true;
 	}
 
+	/**
+	 * Deletes a group and handles the markers within it based on user choice
+	 * (delete markers, move to Unassigned). Cannot delete the "Unassigned" group.
+	 * Updates configuration and rebuilds the UI panel.
+	 *
+	 * @param groupName The name of the group to delete.
+	 */
 	public void deleteGroup(String groupName) {
-		// Allow deleting any group except "Unassigned"
 		if (groupName.equals(UNASSIGNED_GROUP)) {
 			JOptionPane.showMessageDialog(pluginPanel,
 					"Cannot delete the special '" + UNASSIGNED_GROUP + "' group.",
@@ -702,18 +730,29 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 					k -> new ArrayList<>());
 			unassignedList.addAll(markersInGroup);
 			if (!groupOrderList.contains(UNASSIGNED_GROUP)) {
-				groupOrderList.add(UNASSIGNED_GROUP);
+				groupOrderList.add(UNASSIGNED_GROUP); // Add if not present
+				ensureSpecialGroupsOrder(); // Ensure it's placed correctly
 			}
 		}
 
 		markerGroups.remove(groupName);
 		groupOrderList.remove(groupName);
 		groupVisibilityStates.remove(groupName);
-		groupExpansionStates.remove(groupName); // Remove expansion state
-		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+		groupExpansionStates.remove(groupName);
+		updateGroupsConfig();
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 	}
 
+	/**
+	 * Renames an existing group. Cannot rename to "Unassigned", "Imported", or an
+	 * already existing group name. Cannot rename the "Unassigned" or "Imported"
+	 * groups themselves. Preserves the group's markers, visibility, and expansion
+	 * state. Updates configuration and rebuilds the UI panel.
+	 *
+	 * @param oldName The current name of the group.
+	 * @param newName The desired new name for the group.
+	 * @return True if the group was renamed successfully, false otherwise.
+	 */
 	public boolean renameGroup(String oldName, String newName) {
 		if (Strings.isNullOrEmpty(newName) || newName.equals(UNASSIGNED_GROUP) || newName.equals(IMPORTED_GROUP)
 				|| markerGroups.containsKey(newName)) {
@@ -725,59 +764,77 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 
 		List<ScreenMarkerOverlay> markers = markerGroups.remove(oldName);
 		Boolean visibility = groupVisibilityStates.remove(oldName);
-		Boolean expansion = groupExpansionStates.remove(oldName); // Get and remove old expansion state
+		Boolean expansion = groupExpansionStates.remove(oldName);
 
 		if (markers != null) {
 			markerGroups.put(newName, markers);
-			groupVisibilityStates.put(newName, visibility != null ? visibility : true); // Preserve visibility
-			groupExpansionStates.put(newName, expansion != null ? expansion : true); // Preserve expansion
+			groupVisibilityStates.put(newName, visibility != null ? visibility : true);
+			groupExpansionStates.put(newName, expansion != null ? expansion : true);
 
 			int index = groupOrderList.indexOf(oldName);
 			if (index != -1) {
 				groupOrderList.set(index, newName);
 			} else {
-				int insertIndex = groupOrderList.size();
-				if (groupOrderList.contains(IMPORTED_GROUP)) {
-					insertIndex = groupOrderList.indexOf(IMPORTED_GROUP);
-				}
-				if (groupOrderList.contains(UNASSIGNED_GROUP)) {
-					insertIndex = Math.min(insertIndex, groupOrderList.indexOf(UNASSIGNED_GROUP));
-				}
+				// If somehow not in order list, add it before special groups
+				int insertIndex = calculateGroupInsertIndex();
 				groupOrderList.add(insertIndex, newName);
 			}
-			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+			updateGroupsConfig();
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 			return true;
 		}
 		return false;
 	}
 
+	/**
+	 * Moves a group one position up in the display order, unless it's already
+	 * at the top or is a special group ("Unassigned", "Imported"). Updates
+	 * configuration and rebuilds the UI panel.
+	 *
+	 * @param groupName The name of the group to move up.
+	 */
 	public void moveGroupUp(String groupName) {
 		int currentIndex = groupOrderList.indexOf(groupName);
+		// Cannot move up if first, or if it's a special group
 		if (currentIndex <= 0 || groupName.equals(UNASSIGNED_GROUP) || groupName.equals(IMPORTED_GROUP)) {
 			return;
 		}
 		Collections.swap(groupOrderList, currentIndex, currentIndex - 1);
-		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+		updateGroupsConfig();
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 	}
 
+	/**
+	 * Moves a group one position down in the display order, unless it's already
+	 * at the bottom of the regular groups or is a special group ("Unassigned",
+	 * "Imported"). Updates configuration and rebuilds the UI panel.
+	 *
+	 * @param groupName The name of the group to move down.
+	 */
 	public void moveGroupDown(String groupName) {
 		int currentIndex = groupOrderList.indexOf(groupName);
-		int lastValidIndex = groupOrderList.size() - 1;
-		if (groupOrderList.contains(IMPORTED_GROUP))
-			lastValidIndex--;
-		if (groupOrderList.contains(UNASSIGNED_GROUP))
-			lastValidIndex--;
-		if (currentIndex < 0 || currentIndex >= lastValidIndex || groupName.equals(UNASSIGNED_GROUP)
+
+		// Calculate the last index allowed for a non-special group to move down
+		int lastMovableIndex = calculateGroupInsertIndex() - 1; // Index before the first special group
+
+		// Cannot move down if already at the last movable position, or if it's a
+		// special group
+		if (currentIndex < 0 || currentIndex >= lastMovableIndex || groupName.equals(UNASSIGNED_GROUP)
 				|| groupName.equals(IMPORTED_GROUP)) {
 			return;
 		}
+
 		Collections.swap(groupOrderList, currentIndex, currentIndex + 1);
-		updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+		updateGroupsConfig();
 		SwingUtilities.invokeLater(pluginPanel::rebuild);
 	}
 
+	/**
+	 * Finds the name of the group that contains the given screen marker overlay.
+	 *
+	 * @param markerOverlay The overlay to find the group for.
+	 * @return The name of the group containing the overlay, or null if not found.
+	 */
 	public String findGroupForMarker(ScreenMarkerOverlay markerOverlay) {
 		for (Map.Entry<String, List<ScreenMarkerOverlay>> entry : markerGroups.entrySet()) {
 			if (entry.getValue().contains(markerOverlay)) {
@@ -787,6 +844,12 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		return null;
 	}
 
+	/**
+	 * Moves a marker one position up within its current group's list. Updates
+	 * configuration and rebuilds the UI panel.
+	 *
+	 * @param markerOverlay The overlay of the marker to move up.
+	 */
 	public void moveMarkerUp(ScreenMarkerOverlay markerOverlay) {
 		String groupName = findGroupForMarker(markerOverlay);
 		if (groupName == null)
@@ -795,11 +858,17 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		int currentIndex = groupList.indexOf(markerOverlay);
 		if (currentIndex > 0) {
 			Collections.swap(groupList, currentIndex, currentIndex - 1);
-			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+			updateGroupsConfig();
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
 
+	/**
+	 * Moves a marker one position down within its current group's list. Updates
+	 * configuration and rebuilds the UI panel.
+	 *
+	 * @param markerOverlay The overlay of the marker to move down.
+	 */
 	public void moveMarkerDown(ScreenMarkerOverlay markerOverlay) {
 		String groupName = findGroupForMarker(markerOverlay);
 		if (groupName == null)
@@ -808,11 +877,19 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		int currentIndex = groupList.indexOf(markerOverlay);
 		if (currentIndex >= 0 && currentIndex < groupList.size() - 1) {
 			Collections.swap(groupList, currentIndex, currentIndex + 1);
-			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+			updateGroupsConfig();
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
 
+	/**
+	 * Moves a marker from its current group to a different target group. Updates
+	 * configuration, overlay visibility based on the target group, and rebuilds
+	 * the UI panel.
+	 *
+	 * @param markerOverlay   The overlay of the marker to move.
+	 * @param targetGroupName The name of the destination group.
+	 */
 	public void moveMarkerToGroup(ScreenMarkerOverlay markerOverlay, String targetGroupName) {
 		String sourceGroupName = findGroupForMarker(markerOverlay);
 		if (sourceGroupName == null || sourceGroupName.equals(targetGroupName)
@@ -827,29 +904,29 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			if (!isGroupVisible(targetGroupName)) {
 				overlayManager.remove(markerOverlay);
 			} else if (markerOverlay.getMarker().isVisible()) { // OverlayManager.add is idempotent
-				// Add only if target group is visible and marker is visible
 				overlayManager.add(markerOverlay);
 			}
-			updateGroupsConfig(); // Saves markers, order, visibility, and expansion
+			updateGroupsConfig();
 			SwingUtilities.invokeLater(pluginPanel::rebuild);
 		}
 	}
 
+	/**
+	 * Handles RuneLite ConfigChanged events specific to this plugin's group.
+	 * Currently used to detect clicks on the "Import Screen Markers" trigger.
+	 *
+	 * @param event The configuration change event.
+	 */
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) {
 		if (!event.getGroup().equals(CONFIG_GROUP)) {
 			return;
 		}
 
-		// Check if the "importTrigger" config item was changed (likely toggled to true)
 		if (event.getKey().equals("importTrigger")) {
-			// We only trigger if the new value is true (meaning it was clicked)
 			if (Boolean.parseBoolean(event.getNewValue())) {
-				// Use invokeLater to avoid issues with config changes during event handling
 				SwingUtilities.invokeLater(() -> {
-					// Reset the trigger back to false immediately
 					configManager.setConfiguration(CONFIG_GROUP, "importTrigger", false);
-					// Perform the import
 					importScreenMarkers();
 				});
 			}
@@ -875,7 +952,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			loadedMarkers = gson.fromJson(originalMarkersJson, new TypeToken<ArrayList<ScreenMarker>>() {
 			}.getType());
 		} catch (Exception e) {
-			System.err.println("Error parsing original screen markers JSON: " + e.getMessage());
+			// Error logged during development, removed for production cleanup
 			JOptionPane.showMessageDialog(pluginPanel,
 					"Failed to parse markers from the original plugin.",
 					"Import Error", JOptionPane.ERROR_MESSAGE);
@@ -890,27 +967,25 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 		List<ScreenMarkerOverlay> importedGroupList = markerGroups.computeIfAbsent(IMPORTED_GROUP,
 				k -> new ArrayList<>());
 		if (!groupOrderList.contains(IMPORTED_GROUP)) {
-			groupOrderList.add(IMPORTED_GROUP);
+			groupOrderList.add(IMPORTED_GROUP); // Add if not present
+			ensureSpecialGroupsOrder(); // Ensure it's placed correctly
 		}
 		int importedCount = 0;
-		long maxId = findMaxMarkerId(); // Find current max ID to avoid potential collisions with newly created
-										// markers
+		long maxId = findMaxMarkerId();
 
 		for (ScreenMarker markerData : loadedMarkers) {
 			if (markerData == null) {
 				continue;
 			}
 
-			// Check if this marker (by original ID) has already been imported
-			final long originalMarkerId = markerData.getId(); // Use final for lambda
+			final long originalMarkerId = markerData.getId();
 			boolean alreadyImported = importedGroupList.stream()
 					.map(ScreenMarkerOverlay::getMarker)
-					.filter(m -> m.getImportedId() != null) // Check markers that have an importedId
-					.anyMatch(existingMarker -> originalMarkerId == existingMarker.getImportedId()); // Use primitive
-																										// comparison
+					.filter(m -> m.getImportedId() != null)
+					.anyMatch(existingMarker -> originalMarkerId == existingMarker.getImportedId());
 
 			if (alreadyImported) {
-				continue; // Skip this marker if it's already in the "Imported" group
+				continue;
 			}
 
 			// Apply defaults for potentially missing fields from older plugin versions
@@ -935,16 +1010,15 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 					markerData.getBorderThickness(),
 					markerData.getColor(),
 					markerData.getFill(),
-					markerData.isVisible(), // Keep original visibility
+					markerData.isVisible(),
 					markerData.isLabelled(),
-					null); // Pass null for importedId initially
+					null);
 			newMarker.setImportedId(originalMarkerId); // Store the original ID
 
 			// Create the overlay for the new marker
 			ScreenMarkerOverlay newOverlay = new ScreenMarkerOverlay(newMarker, this);
 
 			// Try to read original position and size using original ID
-			// final long originalId = markerData.getId(); // Already defined above
 			Point originalLocation = parsePoint(
 					configManager.getConfiguration(OVERLAY_CONFIG_GROUP,
 							"marker" + originalMarkerId + "_preferredLocation"));
@@ -968,7 +1042,6 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				configManager.setConfiguration(OVERLAY_CONFIG_GROUP, newLocationKey,
 						originalLocation.x + ":" + originalLocation.y);
 			} else {
-				// Ensure any old config for this new ID is removed if no location found
 				configManager.unsetConfiguration(OVERLAY_CONFIG_GROUP, newLocationKey);
 			}
 
@@ -976,7 +1049,6 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 				configManager.setConfiguration(OVERLAY_CONFIG_GROUP, newSizeKey,
 						originalSize.width + "x" + originalSize.height);
 			} else {
-				// Ensure any old config for this new ID is removed if no size found
 				configManager.unsetConfiguration(OVERLAY_CONFIG_GROUP, newSizeKey);
 			}
 
@@ -984,13 +1056,11 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			importedGroupList.add(newOverlay);
 
 			// Add to overlay manager IF the group is visible AND the marker is visible
-			// This controls runtime visibility
 			if (isGroupVisible(IMPORTED_GROUP) && newMarker.isVisible()) {
 				overlayManager.add(newOverlay);
 			}
 
 			// Save the overlay's marker data (JSON blob) using the OverlayManager
-			// This likely doesn't handle position/size, which we now do explicitly above
 			overlayManager.saveOverlay(newOverlay);
 
 			importedCount++;
@@ -1070,6 +1140,47 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 			return new Dimension(width, height);
 		} catch (NumberFormatException e) {
 			return null;
+		}
+	}
+
+	/**
+	 * Calculates the correct insertion index for new groups in the groupOrderList.
+	 * New groups should be inserted before "Unassigned" and "Imported".
+	 *
+	 * @return The index where a new non-special group should be inserted.
+	 */
+	private int calculateGroupInsertIndex() {
+		int insertIndex = groupOrderList.size();
+		if (groupOrderList.contains(IMPORTED_GROUP)) {
+			insertIndex = groupOrderList.indexOf(IMPORTED_GROUP);
+		}
+		if (groupOrderList.contains(UNASSIGNED_GROUP)) {
+			// Insert before Unassigned if it comes before Imported (or if Imported doesn't
+			// exist)
+			insertIndex = Math.min(insertIndex, groupOrderList.indexOf(UNASSIGNED_GROUP));
+		}
+		return insertIndex;
+	}
+
+	/**
+	 * Ensures the "Unassigned" and "Imported" groups are present in the
+	 * groupOrderList (if they exist in markerGroups) and are positioned at the end,
+	 * with "Unassigned" before "Imported".
+	 */
+	private void ensureSpecialGroupsOrder() {
+		boolean unassignedExists = markerGroups.containsKey(UNASSIGNED_GROUP);
+		boolean importedExists = markerGroups.containsKey(IMPORTED_GROUP);
+
+		// Remove existing instances to reposition them correctly
+		groupOrderList.remove(UNASSIGNED_GROUP);
+		groupOrderList.remove(IMPORTED_GROUP);
+
+		// Add them back at the end in the correct order if they exist
+		if (unassignedExists) {
+			groupOrderList.add(UNASSIGNED_GROUP);
+		}
+		if (importedExists) {
+			groupOrderList.add(IMPORTED_GROUP);
 		}
 	}
 }

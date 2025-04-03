@@ -23,25 +23,34 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups; // Keep package declaration
+package screenmarkergroups;
 
 import java.awt.BasicStroke;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
-// ScreenMarkerGroupsPlugin is in the same package, no import needed
-// ScreenMarker is in the same package, no import needed
 import java.awt.Stroke;
 import javax.inject.Inject;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
+/**
+ * Overlay responsible for rendering the visual representation of
+ * a screen marker during its creation process (when the user is dragging).
+ * It displays a striped rectangle matching the marker's intended bounds and
+ * style.
+ */
 class ScreenMarkerCreationOverlay extends Overlay {
-	private final ScreenMarkerGroupsPlugin plugin; // Updated type
+	private final ScreenMarkerGroupsPlugin plugin;
 
+	/**
+	 * Injects dependencies and sets up the overlay properties.
+	 *
+	 * @param plugin The main plugin instance, used to access the currently drawn
+	 *               marker.
+	 */
 	@Inject
-	private ScreenMarkerCreationOverlay(final ScreenMarkerGroupsPlugin plugin) // Updated constructor signature
-	{
+	private ScreenMarkerCreationOverlay(final ScreenMarkerGroupsPlugin plugin) {
 		this.plugin = plugin;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_WIDGETS);
@@ -49,6 +58,14 @@ class ScreenMarkerCreationOverlay extends Overlay {
 		setMovable(true);
 	}
 
+	/**
+	 * Renders the creation overlay.
+	 * Draws a striped rectangle based on the current marker being created.
+	 *
+	 * @param graphics Graphics2D context for drawing.
+	 * @return The dimensions of the rendered overlay, or null if no marker is being
+	 *         created.
+	 */
 	@Override
 	public Dimension render(Graphics2D graphics) {
 		ScreenMarker marker = plugin.getCurrentMarker();
@@ -69,6 +86,12 @@ class ScreenMarkerCreationOverlay extends Overlay {
 		return getBounds().getSize();
 	}
 
+	/**
+	 * Creates a dashed stroke style used for rendering the marker creation outline.
+	 *
+	 * @param thickness The desired thickness of the stroke.
+	 * @return A Stroke object configured with a dashed pattern.
+	 */
 	private Stroke createStripedStroke(int thickness) {
 		return new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 9 }, 0);
 	}
