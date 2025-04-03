@@ -24,9 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups; // Added package declaration
+package screenmarkergroups;
 
-// ScreenMarkerGroupsPlugin is in the same package
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -39,15 +38,23 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
+/**
+ * Overlay responsible for highlighting widgets when the user is in
+ * screen marker creation mode and hovers over a widget menu entry.
+ * This helps the user create markers aligned with specific UI elements.
+ */
 class ScreenMarkerWidgetHighlightOverlay extends Overlay {
-	private final ScreenMarkerGroupsPlugin plugin; // Updated type
+	private final ScreenMarkerGroupsPlugin plugin;
 	private final Client client;
 
+	/**
+	 * Injects dependencies and sets up the overlay properties.
+	 *
+	 * @param plugin The main plugin instance.
+	 * @param client The RuneLite client instance.
+	 */
 	@Inject
-	private ScreenMarkerWidgetHighlightOverlay(final ScreenMarkerGroupsPlugin plugin, final Client client) // Updated
-																											// constructor
-																											// signature
-	{
+	private ScreenMarkerWidgetHighlightOverlay(final ScreenMarkerGroupsPlugin plugin, final Client client) {
 		this.plugin = plugin;
 		this.client = client;
 		setPosition(OverlayPosition.DYNAMIC);
@@ -56,6 +63,14 @@ class ScreenMarkerWidgetHighlightOverlay extends Overlay {
 		setMovable(true);
 	}
 
+	/**
+	 * Renders the widget highlight overlay.
+	 * Only draws if the user is in creation mode but not actively drawing a marker.
+	 * Highlights the widget bounds corresponding to the last menu entry hovered.
+	 *
+	 * @param graphics Graphics2D context for drawing.
+	 * @return null, as this overlay doesn't have specific dimensions.
+	 */
 	@Override
 	public Dimension render(Graphics2D graphics) {
 		if (!plugin.isCreatingScreenMarker() || plugin.isDrawingScreenMarker()) {
@@ -99,6 +114,12 @@ class ScreenMarkerWidgetHighlightOverlay extends Overlay {
 		return null;
 	}
 
+	/**
+	 * Draws a green highlight rectangle around the given bounds.
+	 *
+	 * @param graphics The graphics context.
+	 * @param bounds   The rectangle bounds to highlight.
+	 */
 	private static void drawHighlight(Graphics2D graphics, Rectangle bounds) {
 		graphics.setColor(Color.GREEN);
 		graphics.draw(bounds);

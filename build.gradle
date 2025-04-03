@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-}
+} 
 
 repositories {
 	mavenLocal()
@@ -37,8 +37,7 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register('shadowJar', Jar) {
 	dependsOn configurations.testRuntimeClasspath
 	manifest {
-		attributes('Main-Class': 'screenmarkergroups.ScreenMarkerGroupsPluginTest', 'Multi-Release': true) // Example if you create a test runner
-		attributes('Multi-Release': true) // Keep Multi-Release
+		attributes('Main-Class': 'screenmarkergroups.ScreenMarkerGroupsPluginTest', 'Multi-Release': true)
 	}
 
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE

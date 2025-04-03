@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups; // Added package declaration
+package screenmarkergroups;
 
 import java.awt.Color;
 import lombok.AllArgsConstructor;
@@ -34,13 +34,52 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Represents a screen marker object with its properties.
+ * This class is used to store and manage individual screen markers,
+ * including their visual attributes and state.
+ */
 public class ScreenMarker {
+	/**
+	 * Unique identifier for the screen marker.
+	 */
 	private long id;
+
+	/**
+	 * User-defined name for the screen marker.
+	 */
 	private String name;
+
+	/**
+	 * Thickness of the border around the marker, in pixels.
+	 */
 	private int borderThickness;
+
+	/**
+	 * Color of the border around the marker.
+	 */
 	private Color color;
+
+	/**
+	 * Fill color of the marker. Can be null or transparent for no fill.
+	 */
 	private Color fill;
+
+	/**
+	 * Current visibility state of the marker. If false, the marker is not rendered.
+	 */
 	private boolean visible;
+
+	/**
+	 * Whether the marker's name label should be displayed.
+	 */
 	private boolean labelled;
-	private Long importedId; // ID of the marker in the original plugin it was imported from
+
+	/**
+	 * The ID of the marker in the original RuneLite Screen Marker plugin,
+	 * if this marker was imported. Used for potential future migration or
+	 * reference.
+	 * Can be null if the marker was created directly in this plugin.
+	 */
+	private Long importedId;
 }

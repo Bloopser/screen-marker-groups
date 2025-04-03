@@ -30,13 +30,30 @@ import java.awt.event.MouseEvent;
 import javax.swing.SwingUtilities;
 import net.runelite.client.input.MouseAdapter;
 
+/**
+ * Mouse listener responsible for handling user interactions during the
+ * screen marker creation process. It listens for clicks, presses, releases,
+ * and drags to define the marker's bounds or cancel the creation.
+ */
 class ScreenMarkerMouseListener extends MouseAdapter {
 	private final ScreenMarkerGroupsPlugin plugin;
 
+	/**
+	 * Constructs the mouse listener.
+	 *
+	 * @param plugin The main plugin instance.
+	 */
 	ScreenMarkerMouseListener(ScreenMarkerGroupsPlugin plugin) {
 		this.plugin = plugin;
 	}
 
+	/**
+	 * Consumes click events during marker creation to prevent unintended
+	 * interactions.
+	 *
+	 * @param event The mouse event.
+	 * @return The potentially consumed mouse event.
+	 */
 	@Override
 	public MouseEvent mouseClicked(MouseEvent event) {
 		if (SwingUtilities.isMiddleMouseButton(event)) {
@@ -48,6 +65,16 @@ class ScreenMarkerMouseListener extends MouseAdapter {
 		return event;
 	}
 
+	/**
+	 * Handles the initial mouse press for marker creation.
+	 * If left-clicking on a highlighted widget, creates a marker matching the
+	 * widget bounds.
+	 * If left-clicking elsewhere, starts the drag-to-create process.
+	 * If right-clicking during creation, cancels the process.
+	 *
+	 * @param event The mouse event.
+	 * @return The potentially consumed mouse event.
+	 */
 	@Override
 	public MouseEvent mousePressed(MouseEvent event) {
 		if (SwingUtilities.isMiddleMouseButton(event)) {
@@ -58,35 +85,31 @@ class ScreenMarkerMouseListener extends MouseAdapter {
 			if (plugin.isCreatingScreenMarker()) {
 				final Rectangle bounds = plugin.getSelectedWidgetBounds();
 
-				// Check if clicking a highlighted widget while in creation mode
 				if (bounds != null) {
-					// Prepare the marker using widget bounds
 					plugin.startCreation(bounds.getLocation(), bounds.getSize());
-					// Immediately complete selection since no dragging is needed
 					plugin.completeSelection();
-				}
-				// If not clicking a widget, but creation mode is active,
-				// this is the start of a drag operation.
-				else if (plugin.getStartLocation() == null) {
-					// Prepare the marker using the click point
+				} else if (plugin.getStartLocation() == null) {
 					plugin.startCreation(event.getPoint(), ScreenMarkerGroupsPlugin.DEFAULT_SIZE);
-					// Don't call completeSelection yet, wait for mouseRelease
 				}
 
-				// Consume the event to prevent other interactions
 				event.consume();
 				return event;
 			}
-			// If not in creation mode, let the event pass through (no widget click handling
-			// here)
 		} else if (plugin.isCreatingScreenMarker()) {
-			// Right-click cancels creation if already in progress
-			plugin.finishCreation(true); // Abort creation
+			plugin.finishCreation(true);
 			event.consume();
 		}
 		return event;
 	}
 
+	/**
+	 * Handles the mouse release event during marker creation.
+	 * If the left button is released while drawing, it completes the marker
+	 * selection.
+	 *
+	 * @param event The mouse event.
+	 * @return The potentially consumed mouse event.
+	 */
 	@Override
 	public MouseEvent mouseReleased(MouseEvent event) {
 		if (SwingUtilities.isMiddleMouseButton(event)) {
@@ -95,14 +118,21 @@ class ScreenMarkerMouseListener extends MouseAdapter {
 
 		if (SwingUtilities.isLeftMouseButton(event) && plugin.isCreatingScreenMarker()
 				&& plugin.isDrawingScreenMarker()) {
-			// Complete the drawing process
-			plugin.setDrawingScreenMarker(false); // No longer drawing
-			plugin.completeSelection(); // Unlock the confirm button in the UI
+			plugin.setDrawingScreenMarker(false);
+			plugin.completeSelection();
 			event.consume();
 		}
 		return event;
 	}
 
+	/**
+	 * Handles mouse drag events during marker creation.
+	 * If dragging with the left button, it initializes creation if needed and
+	 * resizes the marker based on the current mouse position.
+	 *
+	 * @param event The mouse event.
+	 * @return The potentially consumed mouse event.
+	 */
 	@Override
 	public MouseEvent mouseDragged(MouseEvent event) {
 		if (!plugin.isCreatingScreenMarker() || SwingUtilities.isMiddleMouseButton(event)) {
@@ -110,9 +140,7 @@ class ScreenMarkerMouseListener extends MouseAdapter {
 		}
 
 		if (SwingUtilities.isLeftMouseButton(event)) {
-			// Initialize marker creation on first drag if not already done by mousePressed
 			if (plugin.getStartLocation() == null) {
-				// Call the renamed method
 				plugin.startCreation(event.getPoint(), ScreenMarkerGroupsPlugin.DEFAULT_SIZE);
 			}
 			plugin.resizeMarker(event.getPoint());

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups; // Added package declaration
+package screenmarkergroups;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -36,6 +36,11 @@ import net.runelite.client.ui.overlay.RenderableEntity;
 
 @Getter(AccessLevel.PACKAGE)
 @Setter(AccessLevel.PACKAGE)
+/**
+ * Represents the renderable entity for a screen marker.
+ * This class handles the actual drawing of the marker's border, fill, and label
+ * based on the provided properties.
+ */
 class ScreenMarkerRenderable implements RenderableEntity {
 	private Dimension size;
 	private int borderThickness;
@@ -44,26 +49,29 @@ class ScreenMarkerRenderable implements RenderableEntity {
 	private Stroke stroke;
 	private String label;
 
+	/**
+	 * Renders the screen marker onto the provided graphics context.
+	 * Draws the fill, border, and label according to the set properties.
+	 *
+	 * @param graphics The graphics context to draw on.
+	 * @return The dimensions of the rendered marker.
+	 */
 	@Override
 	public Dimension render(Graphics2D graphics) {
 		int thickness = borderThickness;
 		int width = size.width;
 		int height = size.height;
 
-		// draw the fill
 		graphics.setColor(fill);
 		graphics.fillRect(thickness, thickness, width - thickness * 2, height - thickness * 2);
 
-		// because the stroke is centered on the rectangle we draw, we need to translate
-		// where we draw the rectangle
-		// this is to ensure that the rectangle we draw is our preferred size
 		int offset = thickness / 2;
 		graphics.setColor(color);
 		graphics.setStroke(stroke);
 		graphics.drawRect(offset, offset, width - thickness, height - thickness);
 
 		if (!label.isEmpty()) {
-			graphics.drawString(label, 0, 0);
+			graphics.drawString(label, offset + thickness, offset + thickness + graphics.getFontMetrics().getAscent());
 		}
 
 		return size;

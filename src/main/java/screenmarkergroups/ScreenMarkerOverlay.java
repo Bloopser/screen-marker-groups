@@ -24,30 +24,38 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package screenmarkergroups; // Added package declaration
+package screenmarkergroups;
 
-// Removed ScreenMarkerRenderable import, now in same package
 import java.awt.BasicStroke;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
-import javax.inject.Inject; // Import Inject
+// Inject import removed as it's unused
 import lombok.Getter;
 import lombok.NonNull;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 
+/**
+ * Overlay responsible for rendering a single screen marker on the game screen.
+ * Handles visibility based on both the marker's state and its group's state.
+ */
 public class ScreenMarkerOverlay extends Overlay {
 	@Getter
 	private final ScreenMarker marker;
-	private final ScreenMarkerRenderable screenMarkerRenderable; // This class is now in the root
-	private final ScreenMarkerGroupsPlugin plugin; // Inject plugin
+	private final ScreenMarkerRenderable screenMarkerRenderable;
+	private final ScreenMarkerGroupsPlugin plugin;
 
-	@Inject
-	ScreenMarkerOverlay(@NonNull ScreenMarker marker, ScreenMarkerGroupsPlugin plugin) { // Add plugin to constructor
+	/**
+	 * Constructs the overlay for a given screen marker.
+	 *
+	 * @param marker The screen marker data object. Cannot be null.
+	 * @param plugin The main plugin instance, used for checking group visibility.
+	 */
+	ScreenMarkerOverlay(@NonNull ScreenMarker marker, ScreenMarkerGroupsPlugin plugin) {
 		this.marker = marker;
-		this.plugin = plugin; // Store plugin instance
-		this.screenMarkerRenderable = new ScreenMarkerRenderable(); // This class is now in the root
+		this.plugin = plugin;
+		this.screenMarkerRenderable = new ScreenMarkerRenderable();
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ALWAYS_ON_TOP);
 		setPriority(PRIORITY_HIGH);
@@ -57,25 +65,34 @@ public class ScreenMarkerOverlay extends Overlay {
 		setResettable(false);
 	}
 
+	/**
+	 * Gets the unique name for this overlay, used for saving configuration.
+	 *
+	 * @return The overlay name string.
+	 */
 	@Override
 	public String getName() {
 		return "marker" + marker.getId();
 	}
 
+	/**
+	 * Renders the screen marker overlay.
+	 * Checks both the marker's visibility and its group's visibility before
+	 * drawing.
+	 *
+	 * @param graphics Graphics2D context for drawing.
+	 * @return The dimensions of the rendered overlay, or null if not rendered.
+	 */
 	@Override
 	public Dimension render(Graphics2D graphics) {
-		// Find the group this marker belongs to
 		String groupName = plugin.findGroupForMarker(this);
 
-		// Render only if marker is visible AND its group is visible (or group not
-		// found, which shouldn't happen)
 		if (!marker.isVisible() || (groupName != null && !plugin.isGroupVisible(groupName))) {
 			return null;
 		}
 
 		Dimension preferredSize = getPreferredSize();
 		if (preferredSize == null) {
-			// overlay has no preferred size in the renderer configuration!
 			return null;
 		}
 
