@@ -5,7 +5,7 @@ Screen Marker Groups allows you to draw boxes and shapes on top of your RuneLite
 
 This is useful for setting up markers for specific tasks, bosses, or activities, and easily switching between different sets of markers without cluttering your screen.
 
-![Screen marker groups](<src/main/resources/screenmarkergroups/readme/Screen Marker Groups.png>)
+![Screen marker groups](<readme/Screen Marker Groups.png>)
 
 ## Features
 
@@ -13,31 +13,31 @@ This is useful for setting up markers for specific tasks, bosses, or activities,
 
 *   **Create Groups:** Click the **(+)** button in the top-right corner of the plugin panel to add a new group. You'll be prompted to enter a name for your group.
 
-![New group creation prompt](<src/main/resources/screenmarkergroups/readme/new group.png>)
-*   **Configure Group (Rename, Delete, Reorder):** Click the **gear icon** (![configure](src/main/resources/screenmarkergroups/configure.png)) on the group's header to open a menu with options to "Rename Group", "Delete Group", "Move Up", or "Move Down".
+![New group creation prompt](<readme/new group.png>)
+*   **Configure Group (Rename, Delete, Reorder):** Click the **gear icon** (![configure](configure.png)) on the group's header to open a menu with options to "Rename Group", "Delete Group", "Move Up", or "Move Down".
     *   *Rename:* Changes the group's name (cannot rename "Unassigned" or "Imported").
     *   *Delete:* Removes the group. You'll be asked if you want to delete its markers or move them to "Unassigned". ("Unassigned" cannot be deleted).
 
-![Delete group confirmation prompt](<src/main/resources/screenmarkergroups/readme/delete group.png>)
+![Delete group confirmation prompt](<readme/delete group.png>)
 
     *   *Move Up/Down:* Changes the group's position in the list (special groups stay at the bottom).
 
-![Group configuration context menu](<src/main/resources/screenmarkergroups/readme/Group config.png>)
-*   **Collapse/Expand Group:** Click the **arrow icon** (![expanded](src/main/resources/screenmarkergroups/expanded.png)/![collapsed](src/main/resources/screenmarkergroups/collapsed.png)) on the group's header to collapse or expand the list of markers within that group, saving panel space.
+![Group configuration context menu](<readme/Group config.png>)
+*   **Collapse/Expand Group:** Click the **arrow icon** (![expanded](expanded.png)/![collapsed](collapsed.png)) on the group's header to collapse or expand the list of markers within that group, saving panel space.
   
-  ![Collapsed groups view in panel](<src/main/resources/screenmarkergroups/readme/collapsed groups.png>)
+  ![Collapsed groups view in panel](<readme/collapsed groups.png>)
 
 ### Marker Management
 
 *   **Create Markers:** Click the **(+)** button on a specific group's header to start creating a marker within that group. The "Drag in-game to draw" panel will appear under that group's header. Click and drag on the game screen or a UI element to draw your marker.
 
-![Creating a new marker within a group](<src/main/resources/screenmarkergroups/readme/new marker in group.png>)
+![Creating a new marker within a group](<readme/new marker in group.png>)
 
-*   **Configure Marker (Reorder, Move Group):** Click the **gear icon** (![configure](src/main/resources/screenmarkergroups/configure.png)) on a marker's panel entry to open a menu with options to "Move Up", "Move Down", or "Move to Group".
+*   **Configure Marker (Reorder, Move Group):** Click the **gear icon** (![configure](configure.png)) on a marker's panel entry to open a menu with options to "Move Up", "Move Down", or "Move to Group".
     *   *Move Up/Down:* Changes the marker's position *within its current group*.
     *   *Move to Group:* Select a different group to move the marker to.
   
-![Marker configuration context menu](<src/main/resources/screenmarkergroups/readme/marker context menu.png>)
+![Marker configuration context menu](<readme/marker context menu.png>)
 
 ### Importing
 
