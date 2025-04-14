@@ -112,6 +112,7 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	private ClientToolbar clientToolbar;
 
 	@Inject
+	@Getter
 	private OverlayManager overlayManager;
 
 	@Inject

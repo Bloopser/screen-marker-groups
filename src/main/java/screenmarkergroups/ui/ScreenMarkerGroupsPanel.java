@@ -466,13 +466,25 @@ class ScreenMarkerGroupsPanel extends JPanel {
 	 * Toggles the persistent visibility state of the marker.
 	 * Updates the marker data, saves configuration, and updates the UI icon.
 	 *
-	 * @param on True to make visible, false to hide.
+	 * @param on o make visible, false to hide.
 	 */
 	private void toggle(boolean on) {
 		visible = on;
 		marker.getMarker().setVisible(visible);
 		plugin.updateGroupsConfig();
 		updateVisibility();
+
+		String groupName = plugin.findGroupForMarker(marker);
+		if (groupName != null && plugin.isGroupVisible(groupName)) {
+			net.runelite.client.ui.overlay.OverlayManager overlayManager = plugin.getOverlayManager();
+			if (overlayManager != null) {
+				if (visible) {
+					overlayManager.add(marker);
+				} else {
+					overlayManager.remove(marker);
+				}
+			}
+		}
 	}
 
 	/**
