@@ -102,6 +102,7 @@ public class ScreenMarkerOverlay extends Overlay {
 		screenMarkerRenderable.setStroke(new BasicStroke(marker.getBorderThickness()));
 		screenMarkerRenderable.setSize(preferredSize);
 		screenMarkerRenderable.setLabel(marker.isLabelled() ? marker.getName() : "");
+		screenMarkerRenderable.setLabelPosition(plugin.getConfig().labelPosition());
 		return screenMarkerRenderable.render(graphics);
 	}
 }

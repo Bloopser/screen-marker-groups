@@ -68,4 +68,14 @@ public interface ScreenMarkerGroupsConfig extends Config {
     default boolean importTrigger() {
         return false;
     }
+
+    /**
+     * Determines the position of the label relative to the marker border.
+     *
+     * @return The selected label position.
+     */
+    @ConfigItem(position = 11, keyName = "labelPosition", name = "Label Position", description = "Position of the label relative to the marker")
+    default LabelPosition labelPosition() {
+        return LabelPosition.INSIDE;
+    }
 }

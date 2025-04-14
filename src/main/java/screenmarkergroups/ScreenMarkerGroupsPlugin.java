@@ -106,6 +106,10 @@ public class ScreenMarkerGroupsPlugin extends Plugin {
 	private ConfigManager configManager;
 
 	@Inject
+	@Getter
+	private ScreenMarkerGroupsConfig config;
+
+	@Inject
 	private MouseManager mouseManager;
 
 	@Inject

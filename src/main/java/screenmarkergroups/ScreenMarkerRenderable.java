@@ -48,6 +48,7 @@ class ScreenMarkerRenderable implements RenderableEntity {
 	private Color fill;
 	private Stroke stroke;
 	private String label;
+	private LabelPosition labelPosition; // Added field for label position
 
 	/**
 	 * Renders the screen marker onto the provided graphics context.
@@ -71,7 +72,11 @@ class ScreenMarkerRenderable implements RenderableEntity {
 		graphics.drawRect(offset, offset, width - thickness, height - thickness);
 
 		if (!label.isEmpty()) {
-			graphics.drawString(label, offset + thickness, offset + thickness + graphics.getFontMetrics().getAscent());
+			if (labelPosition == LabelPosition.ABOVE) {
+				graphics.drawString(label, 0, 0);
+			} else {
+				graphics.drawString(label, thickness, thickness + graphics.getFontMetrics().getAscent());
+			}
 		}
 
 		return size;
